@@ -77,5 +77,7 @@ export const stockStore = reactive({
   async setBadgeStock(code) {
     this.badgeStock = code
     await this.saveToStorage()
+    // 通知背景页更新
+    chrome.runtime.sendMessage({ type: 'UPDATE_BADGE' })
   }
 }) 

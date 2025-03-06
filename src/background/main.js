@@ -8,8 +8,8 @@ console.log('this is background main.js')
 // 更新图标显示
 function updateBadge(change) {
   const color = change >= 0 ? [255, 0, 0, 255] : [0, 255, 0, 255]
-  const text = change.toFixed(1) + '%'
-  
+  const text = Math.abs(change).toFixed(2)
+
   chrome.browserAction.setBadgeBackgroundColor({ color })
   chrome.browserAction.setBadgeText({ text })
 }
@@ -17,13 +17,13 @@ function updateBadge(change) {
 // 定时获取股票数据
 async function updateStockData() {
   await stockStore.loadFromStorage()
-  
+
   // 如果没有设置要显示的股票，则不显示badge
   if (!stockStore.badgeStock) {
     chrome.browserAction.setBadgeText({ text: '' })
     return
   }
-  
+
   try {
     const stockDataList = await fetchStockData([stockStore.badgeStock])
     if (stockDataList.length > 0) {
@@ -35,18 +35,25 @@ async function updateStockData() {
   }
 }
 
+// 添加消息监听
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === 'UPDATE_BADGE') {
+    updateStockData()
+  }
+})
+
 // 初始化
 async function init() {
   try {
     await stockStore.loadFromStorage()
     await updateStockData()
-    
+
     setInterval(() => {
       const now = new Date()
       const hour = now.getHours()
       const minute = now.getMinutes()
       const time = hour * 100 + minute
-      
+
       if ((time >= 930 && time <= 1130) || (time >= 1300 && time <= 1500)) {
         updateStockData()
       }

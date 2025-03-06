@@ -28,6 +28,13 @@
     "eslint-plugin-standard": "^4.0.0",
     "eslint-plugin-vue": "^7.0.0-0",
     "less": "^4.0.0",
-    "less-loader": "^7.2.1"
+    "less-loader": "^7.2.1",
+    "prettier": "3.5.3"
+  },
+  "prettier": {
+    "singleQuote": true,
+    "semi": false,
+    "trailingComma": "none",
+    "tabWidth": 2
   }
 }
