@@ -1,35 +1,31 @@
 {
-	"manifest_version": 2,
-	"name": "A股助手",
-	"description": "实时股票监控工具",
-	"version": "1.0.0",
-	"browser_action": {
-		"default_title": "A股助手",
-		"default_icon": "assets/images/icon48.png",
-		"default_popup": "popup.html"
-	},
-	"permissions": [
-		"storage",
-		"http://qt.gtimg.cn/*",
-		"notifications"
-	],
-	"background": {
-		"scripts": ["js/chunk-vendors.js", "js/background.js"],
-		"persistent": true
-	},
-	"icons": {
-		"16": "assets/images/icon16.png",
-		"48": "assets/images/icon48.png",
-		"128": "assets/images/icon128.png"
-	},
-	"content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
-	"content_scripts": [
-		{
-			"matches": ["<all_urls>"],
-			"css": ["css/content.css"],
-			"js": ["js/chunk-vendors.js", "js/content.js"],
-			"run_at": "document_idle"
-		}
-	],
-	"web_accessible_resources": ["js/inject.js"]
+  "manifest_version": 2,
+  "name": "A股助手",
+  "description": "实时股票监控工具",
+  "version": "1.0.0",
+  "browser_action": {
+    "default_title": "A股助手",
+    "default_icon": "assets/images/icon48.png",
+    "default_popup": "popup.html"
+  },
+  "permissions": ["storage", "http://qt.gtimg.cn/*", "notifications"],
+  "background": {
+    "scripts": ["js/chunk-vendors.js", "js/background.js"],
+    "persistent": true
+  },
+  "icons": {
+    "16": "assets/images/icon16.png",
+    "48": "assets/images/icon48.png",
+    "128": "assets/images/icon128.png"
+  },
+  "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["css/content.css"],
+      "js": ["js/chunk-vendors.js", "js/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": ["js/inject.js"]
 }

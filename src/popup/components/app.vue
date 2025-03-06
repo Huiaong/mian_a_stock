@@ -8,28 +8,36 @@
           {{ index.price.toFixed(2) }}
         </div>
         <div :class="['index-change', index.change >= 0 ? 'up' : 'down']">
-          {{ (index.change >= 0 ? '+' : '') + index.changePercent.toFixed(2) }}%
+          {{ index.changePercent.toFixed(2) }}%
         </div>
       </div>
     </div>
 
     <div class="divider"></div>
 
-    <!-- 自选股标题 -->
-    <div class="section-title">
-      <span>自选股票</span>
-      <button class="settings-btn">设置</button>
-    </div>
-
     <!-- 原有的自选股部分 -->
     <div class="header">
       <div class="input-group">
-        <input
-          v-model="newStockCode"
-          placeholder="输入股票代码，如：600519"
-          @keyup.enter="addStock"
-        />
-        <button class="add-btn" @click="addStock">添加</button>
+        <div class="search-container">
+          <input
+            v-model="searchKeyword"
+            placeholder="输入股票代码、名称或拼音首字母"
+            @input="handleSearch"
+            @keyup.enter="addSelectedStock"
+          />
+          <div v-if="searchResults.length > 0" class="search-results">
+            <div
+              v-for="result in searchResults"
+              :key="result.code"
+              class="search-item"
+              @click="selectSearchResult(result)"
+            >
+              <span class="stock-code">{{ result.code }}</span>
+              <span class="stock-name">{{ result.name }}</span>
+            </div>
+          </div>
+        </div>
+        <button class="add-btn" @click="addSelectedStock">添加</button>
       </div>
     </div>
 
@@ -53,9 +61,7 @@
             <span
               :class="['change-percent', stock.change >= 0 ? 'up' : 'down']"
             >
-              {{
-                (stock.change >= 0 ? '+' : '') + stock.changePercent.toFixed(2)
-              }}%
+              {{ Math.abs(stock.changePercent).toFixed(2) }}%
             </span>
           </div>
         </div>
@@ -72,7 +78,11 @@
 <script>
 import { ref, onMounted } from 'vue'
 import { stockStore } from '@/store/stock'
-import { fetchStockData, MARKET_INDEX_CODES } from '@/utils/stockParser'
+import {
+  fetchStockData,
+  MARKET_INDEX_CODES,
+  searchStock
+} from '@/utils/stockParser'
 
 export default {
   setup() {
@@ -80,6 +90,8 @@ export default {
     const stocks = ref([])
     const marketIndexes = ref([])
     const badgeStock = ref('')
+    const searchKeyword = ref('')
+    const searchResults = ref([])
 
     const updateStockData = async () => {
       if (stockStore.stockList.length === 0) {
@@ -135,15 +147,30 @@ export default {
       }
     }
 
-    const addStock = async () => {
-      if (newStockCode.value) {
-        await stockStore.addStock(newStockCode.value)
-        newStockCode.value = ''
-        await updateStockData()
+    const handleSearch = async () => {
+      if (searchKeyword.value.length < 2) {
+        searchResults.value = []
+        return
       }
+      searchResults.value = await searchStock(searchKeyword.value)
+    }
+
+    const selectSearchResult = async (result) => {
+      await stockStore.addStock(result.code)
+      searchKeyword.value = ''
+      searchResults.value = []
+      await updateStockData()
     }
 
     const removeStock = async (code) => {
+      // 如果删除的是当前关注的股票，清除关注
+      if (code === badgeStock.value) {
+        await stockStore.setBadgeStock('')
+        badgeStock.value = ''
+        // 通知后台更新图标
+        chrome.runtime.sendMessage({ type: 'UPDATE_BADGE' })
+      }
+      // 删除股票
       await stockStore.removeStock(code)
       await updateStockData()
     }
@@ -160,8 +187,15 @@ export default {
         badgeStock.value = stockStore.badgeStock
         // 设置定时刷新
         setInterval(async () => {
-          await Promise.all([updateStockData(), updateMarketIndexes()])
-        }, 10000)
+          const now = new Date()
+          const hour = now.getHours()
+          const minute = now.getMinutes()
+          const time = hour * 100 + minute
+
+          if ((time >= 930 && time <= 1130) || (time >= 1300 && time <= 1500)) {
+            await Promise.all([updateStockData(), updateMarketIndexes()])
+          }
+        }, 3000)
       } catch (err) {
         console.error('初始化失败:', err)
         // 可以在这里添加用户提示
@@ -173,10 +207,13 @@ export default {
       newStockCode,
       stocks,
       marketIndexes,
-      addStock,
       removeStock,
       badgeStock,
-      setBadgeStock
+      setBadgeStock,
+      searchKeyword,
+      searchResults,
+      handleSearch,
+      selectSearchResult
     }
   }
 }
@@ -254,30 +291,47 @@ export default {
 
   .input-group {
     display: flex;
-    gap: 8px;
+    align-items: center;
+    width: 100%;
 
-    input {
+    .search-container {
+      position: relative;
       flex: 1;
-      padding: 8px 12px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 14px;
+      width: auto;
+      margin-right: 36px;
 
-      &:focus {
-        outline: none;
-        border-color: #40a9ff;
-        box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+      input {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 13px;
+        height: 32px;
+
+        &::placeholder {
+          font-size: 12px;
+          color: #999;
+        }
+
+        &:focus {
+          outline: none;
+          border-color: #40a9ff;
+          box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+        }
       }
     }
 
     .add-btn {
-      padding: 8px 16px;
+      flex-shrink: 0;
+      width: 50px;
+      height: 32px;
+      line-height: 32px;
+      font-size: 13px;
       background: #1890ff;
       color: white;
       border: none;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 14px;
 
       &:hover {
         background: #40a9ff;
@@ -403,6 +457,64 @@ export default {
 .stock-item {
   &.is-pinned {
     background: rgba(24, 144, 255, 0.05);
+  }
+}
+
+.search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  width: 256px;
+  background: white;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: #e8e8e8;
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+}
+
+.search-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #f5f5f5;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: #f5f5f5;
+  }
+
+  .stock-code {
+    font-size: 13px;
+    color: #666;
+    width: 80px;
+    margin-right: 8px;
+  }
+
+  .stock-name {
+    font-size: 13px;
+    color: #333;
+    flex: 1;
   }
 }
 </style>

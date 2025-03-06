@@ -7,7 +7,7 @@ console.log('this is background main.js')
 
 // 更新图标显示
 function updateBadge(change) {
-  const color = change >= 0 ? [255, 0, 0, 255] : [0, 255, 0, 255]
+  const color = change >= 0 ? [235, 87, 87, 255] : [39, 174, 96, 255]
   const text = Math.abs(change).toFixed(2)
 
   chrome.browserAction.setBadgeBackgroundColor({ color })
@@ -57,7 +57,7 @@ async function init() {
       if ((time >= 930 && time <= 1130) || (time >= 1300 && time <= 1500)) {
         updateStockData()
       }
-    }, 10000)
+    }, 3000)
   } catch (err) {
     console.error('初始化失败:', err)
     // 在图标上显示错误状态

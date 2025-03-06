@@ -4,7 +4,7 @@ export const stockStore = reactive({
   stockList: [], // 自选股列表
   currentStock: null, // 当前关注的股票
   badgeStock: '', // 新增：用于存储要在图标上显示的股票代码
-  
+
   async addStock(code) {
     // 确保股票代码格式正确（以 sh 或 sz 开头）
     const formattedCode = this.formatStockCode(code)
@@ -13,7 +13,7 @@ export const stockStore = reactive({
       await this.saveToStorage()
     }
   },
-  
+
   async removeStock(code) {
     const index = this.stockList.indexOf(code)
     if (index > -1) {
@@ -21,7 +21,7 @@ export const stockStore = reactive({
       await this.saveToStorage()
     }
   },
-  
+
   formatStockCode(code) {
     code = code.toString()
     // 如果已经有前缀则直接返回
@@ -31,27 +31,30 @@ export const stockStore = reactive({
     // 根据股票代码规则添加前缀
     return code.startsWith('6') ? `sh${code}` : `sz${code}`
   },
-  
+
   async saveToStorage() {
-    await chrome.storage.local.set({
+    await chrome.storage.sync.set({
       stockList: this.stockList,
       badgeStock: this.badgeStock
     })
   },
-  
+
   async loadFromStorage() {
     try {
       const result = await new Promise((resolve) => {
-        chrome.storage.local.get(['stockList', 'badgeStock'], (items) => {
+        chrome.storage.sync.get(['stockList', 'badgeStock'], (items) => {
           resolve(items)
         })
       })
       console.log('从storage加载的数据:', result)
-      
+
       // 处理 stockList，确保它是数组形式
       if (result.stockList !== undefined) {
         // 如果是对象形式，转换为数组
-        if (typeof result.stockList === 'object' && !Array.isArray(result.stockList)) {
+        if (
+          typeof result.stockList === 'object' &&
+          !Array.isArray(result.stockList)
+        ) {
           this.stockList = Object.values(result.stockList)
         } else {
           this.stockList = result.stockList
@@ -80,4 +83,4 @@ export const stockStore = reactive({
     // 通知背景页更新
     chrome.runtime.sendMessage({ type: 'UPDATE_BADGE' })
   }
-}) 
+})
