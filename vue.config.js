@@ -10,10 +10,6 @@ const copyFiles = [
   {
     from: path.resolve('src/assets'),
     to: path.resolve('dist/assets')
-  },
-  {
-    from: path.resolve('src/plugins/inject.js'),
-    to: path.resolve('dist/js')
   }
 ]
 
@@ -21,6 +17,17 @@ const copyFiles = [
 const plugins = [
   new CopyWebpackPlugin({
     patterns: copyFiles
+  }),
+  new CopyWebpackPlugin({
+    patterns: [
+      {
+        from: path.resolve('src/assets/images'),
+        to: path.resolve('dist'),
+        globOptions: {
+          ignore: ['.*']
+        }
+      }
+    ]
   })
 ]
 
@@ -40,22 +47,15 @@ chromeName.forEach((name) => {
 module.exports = {
   pages,
   productionSourceMap: false,
-  // 配置 content.js background.js
+  // 只保留 background.js 的配置
   configureWebpack: {
     entry: {
-      content: './src/content/main.js',
       background: './src/background/main.js'
     },
     output: {
       filename: 'js/[name].js'
     },
     plugins
-  },
-  // 配置 content.css
-  css: {
-    extract: {
-      filename: 'css/[name].css'
-    }
   },
   chainWebpack: (config) => {
     if (process.env.NODE_ENV === 'production') {
