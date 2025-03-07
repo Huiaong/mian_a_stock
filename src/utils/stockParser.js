@@ -2,10 +2,10 @@ import { decode } from 'gbk.js'
 
 // 修改市场指数代码常量
 export const MARKET_INDEX_CODES = {
-  SH: 'sh000001', // 上证指数
-  SZ: 'sz399001', // 深证成指
-  HS300: 'sz399300', // 沪深300 - 修改为正确的代码
-  KC50: 'sz399640' // 创业板指 - 修改为创业板指数代码
+  SH: '000001', // 上证指数
+  SZ: '399001', // 深证成指
+  HS300: '399300', // 沪深300
+  KC50: '399640' // 创业板指
 }
 
 /**
@@ -45,27 +45,37 @@ export function parseStockData(text) {
  * 批量获取股票数据
  */
 export async function fetchStockData(codes) {
-  // 确保输入是数组
   if (!Array.isArray(codes) || codes.length === 0) return []
 
   try {
-    const response = await fetch(`https://qt.gtimg.cn/q=${codes.join(',')}`, {
+    // 添加市场前缀后再请求
+    const formattedCodes = codes.map(code => {
+      // 如果已经有前缀则直接使用
+      if (code.startsWith('sh') || code.startsWith('sz')) return code
+      // 否则根据规则添加前缀
+      return code.startsWith('6') ? `sh${code}` : `sz${code}`
+    })
+
+    const response = await fetch(`https://qt.gtimg.cn/q=${formattedCodes.join(',')}`, {
       headers: {
         Accept: '*/*',
-        Referer: 'https://finance.qq.com' // 添加 Referer
+        Referer: 'https://finance.qq.com'
       }
     })
     const buffer = await response.arrayBuffer()
-    // 使用 gbk.js 解码
     const text = decode(new Uint8Array(buffer))
 
-    // 分割多个股票的数据
     const stockDataList = text.split('\n').filter((line) => line.trim())
 
     return stockDataList
       .map((dataLine) => {
         try {
-          return parseStockData(dataLine)
+          const data = parseStockData(dataLine)
+          // 返回时去掉市场前缀
+          return {
+            ...data,
+            code: data.code // 直接使用数字代码
+          }
         } catch (err) {
           console.error('解析股票数据失败:', err)
           return null
@@ -89,7 +99,7 @@ export async function searchStock(keyword) {
       {
         headers: {
           Accept: '*/*',
-          Referer: 'https://finance.sina.com.cn' // 添加 Referer
+          Referer: 'https://finance.sina.com.cn'
         }
       }
     )
@@ -104,23 +114,11 @@ export async function searchStock(keyword) {
       .filter((item) => item)
       .map((item) => {
         const parts = item.split(',')
-
-        // 判断是否是通过股票代码搜索
-        const isCodeSearch =
-          parts[0].startsWith('sh') || parts[0].startsWith('sz')
-
-        if (isCodeSearch) {
-          // 股票代码搜索格式：sh600515,11,600515,sh600515,海南机场,,海南机场,99,1,ESG,
-          return {
-            code: parts[3], // 市场代码
-            name: parts[6] // 股票名称
-          }
-        } else {
-          // 股票名称搜索格式：名称,11,代码,市场代码,名称,,,99,1,ESG,
-          return {
-            code: parts[3], // 市场代码
-            name: parts[0] // 股票名称
-          }
+        
+        // 统一返回6位数字代码
+        return {
+          code: parts[2], // 直接使用数字代码
+          name: parts[0].startsWith('sh') || parts[0].startsWith('sz') ? parts[6] : parts[0]
         }
       })
   } catch (err) {

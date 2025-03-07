@@ -6,30 +6,21 @@ export const stockStore = reactive({
   badgeStock: '', // 新增：用于存储要在图标上显示的股票代码
 
   async addStock(code) {
-    // 确保股票代码格式正确（以 sh 或 sz 开头）
-    const formattedCode = this.formatStockCode(code)
-    if (!this.stockList.includes(formattedCode)) {
-      this.stockList.push(formattedCode)
+    // 确保只存储数字代码
+    const numericCode = code.replace(/^(sh|sz)/, '')
+    if (!this.stockList.includes(numericCode)) {
+      this.stockList.push(numericCode)
       await this.saveToStorage()
     }
   },
 
   async removeStock(code) {
-    const index = this.stockList.indexOf(code)
+    const numericCode = code.replace(/^(sh|sz)/, '')
+    const index = this.stockList.indexOf(numericCode)
     if (index > -1) {
       this.stockList.splice(index, 1)
       await this.saveToStorage()
     }
-  },
-
-  formatStockCode(code) {
-    code = code.toString()
-    // 如果已经有前缀则直接返回
-    if (code.startsWith('sh') || code.startsWith('sz')) {
-      return code
-    }
-    // 根据股票代码规则添加前缀
-    return code.startsWith('6') ? `sh${code}` : `sz${code}`
   },
 
   async saveToStorage() {
@@ -78,7 +69,8 @@ export const stockStore = reactive({
 
   // 新增：设置要显示在图标上的股票
   async setBadgeStock(code) {
-    this.badgeStock = code
+    const numericCode = code.replace(/^(sh|sz)/, '')
+    this.badgeStock = numericCode
     await this.saveToStorage()
     // 通知背景页更新
     chrome.runtime.sendMessage({ type: 'UPDATE_BADGE' })
