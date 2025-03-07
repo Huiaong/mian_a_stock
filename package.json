@@ -1,6 +1,6 @@
 {
-  "name": "my-vue3-plugin",
-  "version": "0.1.0",
+  "name": "mian-a-stock-helper",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "watch": "vue-cli-service build --watch",
