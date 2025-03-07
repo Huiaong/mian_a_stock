@@ -49,7 +49,12 @@ export async function fetchStockData(codes) {
   if (!Array.isArray(codes) || codes.length === 0) return []
 
   try {
-    const response = await fetch(`http://qt.gtimg.cn/q=${codes.join(',')}`)
+    const response = await fetch(`https://qt.gtimg.cn/q=${codes.join(',')}`, {
+      headers: {
+        Accept: '*/*',
+        Referer: 'https://finance.qq.com' // 添加 Referer
+      }
+    })
     const buffer = await response.arrayBuffer()
     // 使用 gbk.js 解码
     const text = decode(new Uint8Array(buffer))
@@ -80,7 +85,13 @@ export async function fetchStockData(codes) {
 export async function searchStock(keyword) {
   try {
     const response = await fetch(
-      `http://suggest3.sinajs.cn/suggest/type=11,12&key=${encodeURIComponent(keyword)}`
+      `https://suggest3.sinajs.cn/suggest/type=11,12&key=${encodeURIComponent(keyword)}`,
+      {
+        headers: {
+          Accept: '*/*',
+          Referer: 'https://finance.sina.com.cn' // 添加 Referer
+        }
+      }
     )
     const buffer = await response.arrayBuffer()
     const text = decode(new Uint8Array(buffer))

@@ -1,22 +1,24 @@
 {
-  "manifest_version": 2,
+  "manifest_version": 3,
   "name": "缅A助手",
   "description": "实时股票监控工具",
   "version": "1.0.0",
-  "browser_action": {
+  "action": {
     "default_title": "缅A助手",
     "default_icon": "assets/images/icon48.png",
     "default_popup": "popup.html"
   },
-  "permissions": ["storage", "http://qt.gtimg.cn/*", "http://suggest3.sinajs.cn/*", "notifications"],
+  "permissions": ["storage"],
+  "host_permissions": ["https://qt.gtimg.cn/*", "https://suggest3.sinajs.cn/*"],
   "background": {
-    "scripts": ["js/chunk-vendors.js", "js/background.js"],
-    "persistent": true
+    "service_worker": "background.js"
   },
   "icons": {
     "16": "assets/images/icon16.png",
     "48": "assets/images/icon48.png",
     "128": "assets/images/icon128.png"
   },
-  "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'"
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
 }

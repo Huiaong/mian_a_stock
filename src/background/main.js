@@ -1,17 +1,15 @@
-import hotReload from '@/utils/hotReload'
 import { stockStore } from '@/store/stock'
 import { fetchStockData } from '@/utils/stockParser'
 
-hotReload()
-console.log('this is background main.js')
+console.log('background service worker started')
 
 // 更新图标显示
 function updateBadge(change) {
   const color = change >= 0 ? [235, 87, 87, 255] : [39, 174, 96, 255]
   const text = Math.abs(change).toFixed(2)
 
-  chrome.browserAction.setBadgeBackgroundColor({ color })
-  chrome.browserAction.setBadgeText({ text })
+  chrome.action.setBadgeBackgroundColor({ color })
+  chrome.action.setBadgeText({ text })
 }
 
 // 定时获取股票数据
@@ -20,7 +18,7 @@ async function updateStockData() {
 
   // 如果没有设置要显示的股票，则不显示badge
   if (!stockStore.badgeStock) {
-    chrome.browserAction.setBadgeText({ text: '' })
+    chrome.action.setBadgeText({ text: '' })
     return
   }
 
@@ -31,7 +29,7 @@ async function updateStockData() {
     }
   } catch (error) {
     console.error('获取股票数据失败:', error)
-    chrome.browserAction.setBadgeText({ text: 'ERR' })
+    chrome.action.setBadgeText({ text: 'ERR' })
   }
 }
 
@@ -61,8 +59,8 @@ async function init() {
   } catch (err) {
     console.error('初始化失败:', err)
     // 在图标上显示错误状态
-    chrome.browserAction.setBadgeText({ text: 'ERR' })
-    chrome.browserAction.setBadgeBackgroundColor({ color: [255, 0, 0, 255] })
+    chrome.action.setBadgeText({ text: 'ERR' })
+    chrome.action.setBadgeBackgroundColor({ color: [255, 0, 0, 255] })
   }
 }
 
