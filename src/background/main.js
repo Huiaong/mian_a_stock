@@ -1,5 +1,6 @@
 import { stockStore } from '@/store/stock'
 import { fetchStockData } from '@/utils/stockParser'
+import { isTradingTime } from '@/utils/tradingTime'
 
 console.log('background service worker started')
 
@@ -47,12 +48,7 @@ async function init() {
     await updateStockData()
 
     setInterval(() => {
-      const now = new Date()
-      const hour = now.getHours()
-      const minute = now.getMinutes()
-      const time = hour * 100 + minute
-
-      if ((time >= 930 && time <= 1130) || (time >= 1300 && time <= 1500)) {
+      if (isTradingTime()) {
         updateStockData()
       }
     }, 3000)

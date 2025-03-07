@@ -52,7 +52,7 @@
         <div class="stock-info">
           <div class="stock-name-code">
             <span class="name">{{ stock.name }}</span>
-            <span class="code">{{ stock.code.substring(2) }}</span>
+            <span class="code">{{ stock.code }}</span>
           </div>
           <div class="stock-price">
             <span :class="['current-price', stock.change >= 0 ? 'up' : 'down']">
@@ -83,6 +83,7 @@ import {
   MARKET_INDEX_CODES,
   searchStock
 } from '@/utils/stockParser'
+import { isTradingTime } from '@/utils/tradingTime'
 
 export default {
   setup() {
@@ -185,20 +186,15 @@ export default {
         await Promise.all([stockStore.loadFromStorage(), updateMarketIndexes()])
         await updateStockData()
         badgeStock.value = stockStore.badgeStock
+
         // 设置定时刷新
         setInterval(async () => {
-          const now = new Date()
-          const hour = now.getHours()
-          const minute = now.getMinutes()
-          const time = hour * 100 + minute
-
-          if ((time >= 930 && time <= 1130) || (time >= 1300 && time <= 1500)) {
+          if (isTradingTime()) {
             await Promise.all([updateStockData(), updateMarketIndexes()])
           }
         }, 3000)
       } catch (err) {
         console.error('初始化失败:', err)
-        // 可以在这里添加用户提示
         alert('加载股票列表失败: ' + err.message)
       }
     })
@@ -351,6 +347,8 @@ export default {
     align-items: center;
     padding: 12px;
     border-bottom: 1px solid #f0f0f0;
+    user-select: none;
+    -webkit-user-select: none;
 
     &:last-child {
       border-bottom: none;

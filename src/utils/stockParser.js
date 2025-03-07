@@ -1,11 +1,11 @@
 import { decode } from 'gbk.js'
 
-// 修改市场指数代码常量
+// 修改市场指数代码常量，添加正确的前缀
 export const MARKET_INDEX_CODES = {
-  SH: '000001', // 上证指数
-  SZ: '399001', // 深证成指
-  HS300: '399300', // 沪深300
-  KC50: '399640' // 创业板指
+  SH: 'sh000001', // 上证指数
+  SZ: 'sz399001', // 深证成指
+  HS300: 'sz399300', // 沪深300
+  KC50: 'sz399640' // 创业板指
 }
 
 /**
@@ -49,19 +49,22 @@ export async function fetchStockData(codes) {
 
   try {
     // 添加市场前缀后再请求
-    const formattedCodes = codes.map(code => {
+    const formattedCodes = codes.map((code) => {
       // 如果已经有前缀则直接使用
       if (code.startsWith('sh') || code.startsWith('sz')) return code
       // 否则根据规则添加前缀
       return code.startsWith('6') ? `sh${code}` : `sz${code}`
     })
 
-    const response = await fetch(`https://qt.gtimg.cn/q=${formattedCodes.join(',')}`, {
-      headers: {
-        Accept: '*/*',
-        Referer: 'https://finance.qq.com'
+    const response = await fetch(
+      `https://qt.gtimg.cn/q=${formattedCodes.join(',')}`,
+      {
+        headers: {
+          Accept: '*/*',
+          Referer: 'https://finance.qq.com'
+        }
       }
-    })
+    )
     const buffer = await response.arrayBuffer()
     const text = decode(new Uint8Array(buffer))
 
@@ -114,11 +117,14 @@ export async function searchStock(keyword) {
       .filter((item) => item)
       .map((item) => {
         const parts = item.split(',')
-        
+
         // 统一返回6位数字代码
         return {
           code: parts[2], // 直接使用数字代码
-          name: parts[0].startsWith('sh') || parts[0].startsWith('sz') ? parts[6] : parts[0]
+          name:
+            parts[0].startsWith('sh') || parts[0].startsWith('sz')
+              ? parts[6]
+              : parts[0]
         }
       })
   } catch (err) {
