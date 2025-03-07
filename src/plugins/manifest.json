@@ -11,7 +11,8 @@
   "permissions": ["storage"],
   "host_permissions": ["https://qt.gtimg.cn/*", "https://suggest3.sinajs.cn/*"],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "icons": {
     "16": "assets/images/icon16.png",
@@ -19,6 +20,6 @@
     "128": "assets/images/icon128.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   }
 }

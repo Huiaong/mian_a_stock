@@ -58,7 +58,8 @@ module.exports = {
     plugins,
     optimization: {
       splitChunks: false
-    }
+    },
+    devtool: 'inline-source-map'
   },
   chainWebpack: (config) => {
     // 移除 chunk-vendors，确保 background.js 是独立的
@@ -67,6 +68,11 @@ module.exports = {
     // 修改输出路径，确保 background.js 在根目录
     if (process.env.NODE_ENV === 'production') {
       config.output.filename('[name].js').chunkFilename('[name].js')
+    }
+
+    // 禁用 eval
+    if (process.env.NODE_ENV === 'production') {
+      config.mode('production').devtool('source-map')
     }
   }
 }
