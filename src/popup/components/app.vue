@@ -8,7 +8,8 @@
           {{ index.price.toFixed(2) }}
         </div>
         <div :class="['index-change', index.change >= 0 ? 'up' : 'down']">
-          {{ index.changePercent.toFixed(2) }}%
+          {{ index.change >= 0 ? '' : '-'
+          }}{{ Math.abs(index.changePercent).toFixed(2) }}%
         </div>
       </div>
     </div>
@@ -54,6 +55,13 @@
             <span class="name">{{ stock.name }}</span>
             <span class="code">{{ stock.code }}</span>
           </div>
+          <div class="mini-chart">
+            <canvas
+              :ref="(el) => setCanvasRef(el, stock.code)"
+              width="120"
+              height="30"
+            ></canvas>
+          </div>
           <div class="stock-price">
             <span :class="['current-price', stock.change >= 0 ? 'up' : 'down']">
               {{ stock.price.toFixed(2) }}
@@ -61,7 +69,8 @@
             <span
               :class="['change-percent', stock.change >= 0 ? 'up' : 'down']"
             >
-              {{ Math.abs(stock.changePercent).toFixed(2) }}%
+              {{ stock.change >= 0 ? '' : '-'
+              }}{{ Math.abs(stock.changePercent).toFixed(2) }}%
             </span>
           </div>
         </div>
@@ -76,7 +85,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { stockStore } from '@/store/stock'
 import {
   fetchStockData,
@@ -93,6 +102,9 @@ export default {
     const badgeStock = ref('')
     const searchKeyword = ref('')
     const searchResults = ref([])
+    const canvasRefs = ref({})
+    const chartData = ref({})
+    let updateInterval = null
 
     const updateStockData = async () => {
       if (stockStore.stockList.length === 0) {
@@ -102,10 +114,11 @@ export default {
 
       try {
         const stockDataList = await fetchStockData(stockStore.stockList)
-        stocks.value = stockDataList.map((data) => ({
-          ...data,
-          code: stockStore.stockList[stockDataList.indexOf(data)]
-        }))
+        stocks.value = stockStore.stockList
+          .map((code) => {
+            return stockDataList.find((data) => data.code === code)
+          })
+          .filter(Boolean)
       } catch (err) {
         console.error('更新股票数据失败:', err)
       }
@@ -161,6 +174,8 @@ export default {
       searchKeyword.value = ''
       searchResults.value = []
       await updateStockData()
+      // 添加股票后立即获取分时数据
+      await fetchTimeSeriesData(result.code)
     }
 
     const removeStock = async (code) => {
@@ -181,21 +196,152 @@ export default {
       badgeStock.value = code
     }
 
+    const setCanvasRef = (el, code) => {
+      if (el) {
+        canvasRefs.value[code] = el
+        drawMiniChart(code)
+      }
+    }
+
+    const drawMiniChart = (code) => {
+      const canvas = canvasRefs.value[code]
+      if (!canvas || !chartData.value[code]) return
+
+      const ctx = canvas.getContext('2d')
+      const data = chartData.value[code]
+      const width = canvas.width
+      const height = canvas.height
+
+      // 清除画布
+      ctx.clearRect(0, 0, width, height)
+
+      if (data.length > 0) {
+        const prices = data.map((item) => item.price)
+        const basePrice = prices[0] // 使用开盘价作为基准
+        const maxDiff = Math.max(
+          Math.abs(Math.max(...prices) - basePrice),
+          Math.abs(Math.min(...prices) - basePrice)
+        )
+        const max = basePrice + maxDiff
+        const min = basePrice - maxDiff
+        const range = max - min || 1
+
+        const padding = 2
+        const chartWidth = width - 2 * padding
+        const chartHeight = height - 2 * padding
+
+        // 绘制基准线
+        ctx.beginPath()
+        ctx.strokeStyle = '#999'
+        ctx.setLineDash([2, 2])
+        const baseY = padding + chartHeight * (1 - (basePrice - min) / range)
+        ctx.moveTo(padding, baseY)
+        ctx.lineTo(width - padding, baseY)
+        ctx.stroke()
+        ctx.setLineDash([])
+
+        // 获取对应的股票数据以确定涨跌
+        const stock = stocks.value.find((s) => s.code === code)
+        const isUp = stock ? stock.change >= 0 : false
+
+        // 绘制分时线
+        ctx.beginPath()
+        ctx.strokeStyle = isUp ? '#f5222d' : '#52c41a'
+        ctx.lineWidth = 1
+
+        data.forEach((point, index) => {
+          const x = padding + (chartWidth * index) / (data.length - 1)
+          const y = padding + chartHeight * (1 - (point.price - min) / range)
+          if (index === 0) {
+            ctx.moveTo(x, y)
+          } else {
+            ctx.lineTo(x, y)
+          }
+        })
+
+        // 添加渐变填充
+        const gradient = ctx.createLinearGradient(0, 0, 0, height)
+        if (isUp) {
+          gradient.addColorStop(0, 'rgba(245, 34, 45, 0.1)')
+          gradient.addColorStop(1, 'rgba(245, 34, 45, 0)')
+        } else {
+          gradient.addColorStop(0, 'rgba(82, 196, 26, 0.1)')
+          gradient.addColorStop(1, 'rgba(82, 196, 26, 0)')
+        }
+
+        ctx.stroke()
+        ctx.lineTo(width - padding, height - padding)
+        ctx.lineTo(padding, height - padding)
+        ctx.closePath()
+        ctx.fillStyle = gradient
+        ctx.fill()
+      }
+    }
+
+    const fetchTimeSeriesData = async (code) => {
+      try {
+        const formattedCode = code.startsWith('6') ? `sh${code}` : `sz${code}`
+        const response = await fetch(
+          `https://web.ifzq.gtimg.cn/appstock/app/minute/query?_var=min_data_${formattedCode}&code=${formattedCode}`
+        )
+        const text = await response.text()
+
+        // 解析数据，移除 JavaScript 变量声明部分
+        const jsonStr = text.replace(`min_data_${formattedCode}=`, '')
+        const data = JSON.parse(jsonStr)
+
+        // 提取分时数据
+        const minData = data.data[formattedCode].data.data
+        const chartPoints = minData.map((item) => {
+          const [time, price] = item.split(' ')
+          return {
+            time,
+            price: parseFloat(price)
+          }
+        })
+
+        chartData.value[code] = chartPoints
+        drawMiniChart(code)
+      } catch (error) {
+        console.error('获取分时数据失败:', error)
+        // 获取失败时，清空数据
+        chartData.value[code] = []
+        drawMiniChart(code)
+      }
+    }
+
     onMounted(async () => {
       try {
         await Promise.all([stockStore.loadFromStorage(), updateMarketIndexes()])
         await updateStockData()
         badgeStock.value = stockStore.badgeStock
 
-        // 设置定时刷新
-        setInterval(async () => {
+        // 初始化分时图数据
+        for (const stock of stocks.value) {
+          await fetchTimeSeriesData(stock.code)
+        }
+
+        // 设置定时刷新，同时更新股票数据和分时图
+        updateInterval = setInterval(async () => {
           if (isTradingTime()) {
-            await Promise.all([updateStockData(), updateMarketIndexes()])
+            await Promise.all([
+              updateStockData(),
+              updateMarketIndexes(),
+              ...stocks.value.map((stock) => fetchTimeSeriesData(stock.code))
+            ])
           }
         }, 3000)
       } catch (err) {
         console.error('初始化失败:', err)
         alert('加载股票列表失败: ' + err.message)
+      }
+    })
+
+    // 添加组件卸载前的清理
+    onBeforeUnmount(() => {
+      if (updateInterval) {
+        clearInterval(updateInterval)
+        updateInterval = null
       }
     })
 
@@ -209,7 +355,8 @@ export default {
       searchKeyword,
       searchResults,
       handleSearch,
-      selectSearchResult
+      selectSearchResult,
+      setCanvasRef
     }
   }
 }
@@ -217,11 +364,16 @@ export default {
 
 <style lang="less" scoped>
 .popup_page {
-  width: 320px;
+  width: 360px;
+  height: 500px;
   padding: 12px;
   font-family:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
     Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .market-index {
@@ -233,26 +385,14 @@ export default {
   padding: 12px;
   border-radius: 4px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-
-  .index-item {
-    text-align: center;
-
-    .index-price {
-      font-size: 16px;
-      font-weight: 500;
-      margin-bottom: 2px;
-    }
-
-    .index-change {
-      font-size: 12px;
-    }
-  }
+  flex-shrink: 0;
 }
 
 .divider {
   height: 1px;
   background: #f0f0f0;
-  margin: 12px 0;
+  margin: 0 0 12px 0;
+  flex-shrink: 0;
 }
 
 .section-title {
@@ -283,7 +423,8 @@ export default {
 }
 
 .header {
-  margin-bottom: 15px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
 
   .input-group {
     display: flex;
@@ -339,13 +480,34 @@ export default {
 .stock-list {
   background: #fff;
   border-radius: 4px;
-  padding: 8px 0;
+  padding: 0;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin-bottom: 12px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: #e8e8e8;
+    border-radius: 3px;
+
+    &:hover {
+      background-color: #d9d9d9;
+    }
+  }
+
+  &::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
 
   .stock-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px;
+    padding: 9px;
     border-bottom: 1px solid #f0f0f0;
     user-select: none;
     -webkit-user-select: none;
@@ -357,88 +519,80 @@ export default {
     .stock-info {
       flex: 1;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      margin-right: 8px;
 
       .stock-name-code {
+        width: 68px;
+        flex-shrink: 0;
+
         .name {
           font-size: 15px;
           font-weight: 500;
           color: #333;
           margin-right: 8px;
+          display: block;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .code {
           font-size: 12px;
           color: #999;
+          display: block;
         }
       }
 
+      .mini-chart {
+        width: 120px;
+        height: 30px;
+        margin: 0 8px;
+        flex-shrink: 0;
+      }
+
       .stock-price {
+        width: 60px;
         text-align: right;
+        flex-shrink: 0;
+        margin-left: auto;
 
         .current-price {
           display: block;
           font-size: 16px;
           font-weight: 500;
           margin-bottom: 2px;
+          white-space: nowrap;
         }
 
         .change-percent {
           font-size: 13px;
+          white-space: nowrap;
         }
       }
     }
 
     .stock-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+      width: 32px;
+      flex-shrink: 0;
 
-    .badge-btn {
-      padding: 6px 10px;
-      background: transparent;
-      border: none;
-      color: #999;
-      cursor: pointer;
-      font-size: 16px;
-      transition: all 0.3s;
-      border-radius: 4px;
+      .remove-btn {
+        padding: 4px 8px;
+        background: transparent;
+        border: none;
+        color: #999;
+        cursor: pointer;
+        font-size: 16px;
+        transition: color 0.3s;
 
-      &.active {
-        color: #1890ff;
-        background-color: rgba(24, 144, 255, 0.1);
-      }
+        &:hover {
+          color: #666;
+        }
 
-      &:hover {
-        color: #666;
-        background-color: rgba(0, 0, 0, 0.05);
-      }
-
-      .badge-icon {
-        display: block;
-        line-height: 1;
-        font-size: 18px;
-      }
-    }
-
-    .remove-btn {
-      padding: 4px 8px;
-      margin-left: 12px;
-      background: transparent;
-      border: none;
-      color: #999;
-      cursor: pointer;
-      font-size: 16px;
-
-      &:hover {
-        color: #666;
-      }
-
-      .remove-icon {
-        display: block;
-        line-height: 1;
+        .remove-icon {
+          display: block;
+          line-height: 1;
+        }
       }
     }
   }

@@ -9,7 +9,7 @@ export const stockStore = reactive({
     // 确保只存储数字代码
     const numericCode = code.replace(/^(sh|sz)/, '')
     if (!this.stockList.includes(numericCode)) {
-      this.stockList.push(numericCode)
+      this.stockList.unshift(numericCode)
       await this.saveToStorage()
     }
   },
