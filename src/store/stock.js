@@ -1,9 +1,17 @@
 import { reactive } from 'vue'
+import { fetchStockData } from '../utils/stockParser'
 
 export const stockStore = reactive({
   stockList: [], // 自选股列表
   currentStock: null, // 当前关注的股票
   badgeStock: '', // 新增：用于存储要在图标上显示的股票代码
+  stockCache: new Map(), // 添加缓存
+  cacheExpireTime: 3000, // 缓存过期时间（毫秒）
+  requestStatus: {
+    loading: false,
+    error: null,
+    lastUpdate: null
+  },
 
   async addStock(code) {
     // 确保只存储数字代码
@@ -74,5 +82,62 @@ export const stockStore = reactive({
     await this.saveToStorage()
     // 通知背景页更新
     chrome.runtime.sendMessage({ type: 'UPDATE_BADGE' })
+  },
+
+  // 添加缓存方法
+  setCacheData(code, data) {
+    this.stockCache.set(code, {
+      data,
+      timestamp: Date.now()
+    })
+  },
+
+  getCacheData(code) {
+    const cached = this.stockCache.get(code)
+    if (!cached) return null
+
+    // 检查缓存是否过期
+    if (Date.now() - cached.timestamp > this.cacheExpireTime) {
+      this.stockCache.delete(code)
+      return null
+    }
+
+    return cached.data
+  },
+
+  // 清理过期缓存
+  cleanExpiredCache() {
+    const now = Date.now()
+    for (const [code, cached] of this.stockCache.entries()) {
+      if (now - cached.timestamp > this.cacheExpireTime) {
+        this.stockCache.delete(code)
+      }
+    }
+  },
+
+  async updateStockData() {
+    this.requestStatus.loading = true
+    this.requestStatus.error = null
+
+    try {
+      // 检查缓存
+      const cachedData = this.getCacheData('stockData')
+      if (cachedData) {
+        return cachedData
+      }
+
+      const data = await fetchStockData(this.stockList)
+
+      // 更新缓存
+      this.setCacheData('stockData', data)
+      this.requestStatus.lastUpdate = Date.now()
+
+      return data
+    } catch (error) {
+      this.requestStatus.error = error
+      throw error
+    } finally {
+      this.requestStatus.loading = false
+    }
   }
 })

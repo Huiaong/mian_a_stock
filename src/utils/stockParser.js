@@ -41,6 +41,22 @@ export function parseStockData(text) {
   }
 }
 
+async function fetchWithRetry(url, options, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, options)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      return response
+    } catch (error) {
+      if (i === retries - 1) throw error
+      // 延迟重试，时间递增
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)))
+    }
+  }
+}
+
 /**
  * 批量获取股票数据
  */
@@ -56,19 +72,35 @@ export async function fetchStockData(codes) {
       return code.startsWith('6') ? `sh${code}` : `sz${code}`
     })
 
-    const response = await fetch(
-      `https://qt.gtimg.cn/q=${formattedCodes.join(',')}`,
-      {
-        headers: {
-          Accept: '*/*',
-          Referer: 'https://finance.qq.com'
-        }
-      }
-    )
-    const buffer = await response.arrayBuffer()
-    const text = decode(new Uint8Array(buffer))
+    // 将请求分批处理，每批最多30个股票
+    const batchSize = 30
+    const batches = []
+    for (let i = 0; i < formattedCodes.length; i += batchSize) {
+      batches.push(formattedCodes.slice(i, i + batchSize))
+    }
 
-    const stockDataList = text.split('\n').filter((line) => line.trim())
+    // 并发请求每一批数据
+    const results = await Promise.all(
+      batches.map(async (batchCodes) => {
+        const response = await fetchWithRetry(
+          `https://qt.gtimg.cn/q=${batchCodes.join(',')}`,
+          {
+            headers: {
+              Accept: '*/*',
+              Referer: 'https://finance.qq.com'
+            }
+          }
+        )
+        const buffer = await response.arrayBuffer()
+        return decode(new Uint8Array(buffer))
+      })
+    )
+
+    // 合并所有批次的结果
+    const stockDataList = results
+      .join('\n')
+      .split('\n')
+      .filter((line) => line.trim())
 
     return stockDataList
       .map((dataLine) => {

@@ -105,6 +105,7 @@ export default {
     const canvasRefs = ref({})
     const chartData = ref({})
     let updateInterval = null
+    let checkIntervalTimer = null
 
     const updateStockData = async () => {
       if (stockStore.stockList.length === 0) {
@@ -310,6 +311,47 @@ export default {
       }
     }
 
+    // 动态调整更新频率
+    const getUpdateInterval = () => {
+      const now = new Date()
+      const hour = now.getHours()
+      const minute = now.getMinutes()
+
+      // 开盘和收盘前后加快更新频率
+      if (
+        (hour === 9 && minute >= 25) ||
+        (hour === 11 && minute >= 25) ||
+        (hour === 13 && minute <= 5) ||
+        (hour === 14 && minute >= 55)
+      ) {
+        return 1000 // 1秒
+      }
+
+      // 非交易时间降低更新频率
+      if (!isTradingTime()) {
+        return 30000 // 30秒
+      }
+
+      return 3000 // 默认3秒
+    }
+
+    // 更新定时器
+    const updateTimer = () => {
+      if (updateInterval) {
+        clearInterval(updateInterval)
+      }
+
+      updateInterval = setInterval(async () => {
+        if (isTradingTime()) {
+          await Promise.all([
+            updateStockData(),
+            updateMarketIndexes(),
+            ...stocks.value.map((stock) => fetchTimeSeriesData(stock.code))
+          ])
+        }
+      }, getUpdateInterval())
+    }
+
     onMounted(async () => {
       try {
         await Promise.all([stockStore.loadFromStorage(), updateMarketIndexes()])
@@ -322,15 +364,12 @@ export default {
         }
 
         // 设置定时刷新，同时更新股票数据和分时图
-        updateInterval = setInterval(async () => {
-          if (isTradingTime()) {
-            await Promise.all([
-              updateStockData(),
-              updateMarketIndexes(),
-              ...stocks.value.map((stock) => fetchTimeSeriesData(stock.code))
-            ])
-          }
-        }, 3000)
+        updateTimer()
+
+        // 定期检查并调整更新频率
+        checkIntervalTimer = setInterval(() => {
+          updateTimer()
+        }, 60000) // 每分钟检查一次
       } catch (err) {
         console.error('初始化失败:', err)
         alert('加载股票列表失败: ' + err.message)
@@ -342,6 +381,10 @@ export default {
       if (updateInterval) {
         clearInterval(updateInterval)
         updateInterval = null
+      }
+      if (checkIntervalTimer) {
+        clearInterval(checkIntervalTimer)
+        checkIntervalTimer = null
       }
     })
 
