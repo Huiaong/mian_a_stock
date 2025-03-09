@@ -45,10 +45,10 @@
     <draggable
       v-model="stocks"
       class="stock-list"
-      :animation="200"
-      ghost-class="ghost-item"
-      chosen-class="chosen-item"
-      drag-class="drag-item"
+      :animation="150"
+      ghost-class="ghost-class"
+      chosen-class="chosen-class"
+      drag-class="drag-class"
       @start="onDragStart"
       @end="onDragEnd"
       item-key="code"
@@ -125,6 +125,13 @@ export default {
     const chartData = ref({})
     let updateInterval = null
     let checkIntervalTimer = null
+
+    const dragOptions = {
+      animation: 200,
+      group: 'description',
+      disabled: false,
+      ghostClass: 'ghost'
+    }
 
     const updateStockData = async () => {
       if (stockStore.stockList.length === 0) {
@@ -371,12 +378,14 @@ export default {
       }, getUpdateInterval())
     }
 
-    // 添加拖拽相关方法
-    const onDragStart = () => {
-      // 开始拖拽时的处理
+    const onDragStart = (evt) => {
+      evt.item.classList.add('dragging')
+      document.body.style.cursor = 'grabbing'
     }
 
-    const onDragEnd = async () => {
+    const onDragEnd = async (evt) => {
+      evt.item.classList.remove('dragging')
+      document.body.style.cursor = ''
       // 更新 stockStore 中的顺序
       stockStore.stockList = stocks.value.map((stock) => stock.code)
       await stockStore.saveToStorage()
@@ -430,8 +439,9 @@ export default {
       handleSearch,
       selectSearchResult,
       setCanvasRef,
+      onDragEnd,
       onDragStart,
-      onDragEnd
+      dragOptions
     }
   }
 }
@@ -565,6 +575,7 @@ export default {
   overflow-y: auto;
   overflow-x: hidden;
   margin-bottom: 12px;
+  position: relative;
 
   &::-webkit-scrollbar {
     width: 6px;
@@ -591,9 +602,17 @@ export default {
     border-bottom: 1px solid #f0f0f0;
     user-select: none;
     -webkit-user-select: none;
+    transition: all 0.3s;
+    position: relative;
+    z-index: 1;
+    background: white;
 
     &:last-child {
       border-bottom: none;
+    }
+
+    &:hover {
+      z-index: 2;
     }
 
     .stock-info {
@@ -601,6 +620,11 @@ export default {
       display: flex;
       align-items: center;
       margin-right: 8px;
+      cursor: grab;
+
+      &:active {
+        cursor: grabbing;
+      }
 
       .stock-name-code {
         width: 68px;
@@ -690,6 +714,15 @@ export default {
   &.is-pinned {
     background: rgba(24, 144, 255, 0.05);
   }
+
+  &.sortable-ghost {
+    opacity: 0;
+  }
+
+  &.sortable-drag {
+    position: relative;
+    z-index: 3;
+  }
 }
 
 .search-results {
@@ -750,24 +783,107 @@ export default {
   }
 }
 
-// 添加拖拽相关样式
-.ghost-item {
-  opacity: 0.5;
+// 修改过渡动画相关样式
+.flip-list-move {
+  transition: transform 0.3s;
+}
+
+.flip-list-enter-active,
+.flip-list-leave-active {
+  transition: all 0.5s;
+}
+
+.flip-list-enter-from,
+.flip-list-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+.ghost-class {
   background: #f0f0f0;
+  border: 1px dashed #1890ff;
+
+  * {
+    opacity: 0;
+  }
 }
 
-.chosen-item {
-  background: #f5f5f5;
+.chosen-class {
+  background: white;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transform: scale(1.02);
+  z-index: 3;
 }
 
-.drag-item {
-  opacity: 0.8;
-  transform: scale(0.95);
-  background: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+.drag-class {
+  background: white;
+  transform: rotate(2deg) scale(1.02);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  z-index: 3;
+
+  .stock-info {
+    cursor: grabbing;
+  }
 }
 
 .stock-item {
   transition: all 0.3s;
+  position: relative;
+  z-index: 1;
+  background: white;
+
+  &:hover {
+    z-index: 2;
+  }
+}
+
+.no-move {
+  transition: transform 0s;
+}
+
+.ghost {
+  opacity: 0.5;
+  background: #c8ebfb;
+}
+
+.list-group {
+  min-height: 20px;
+}
+
+.list-group-item {
+  cursor: move;
+}
+
+.list-group-item i {
+  cursor: pointer;
+}
+
+.stock-info {
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+// 优化滚动条样式
+.stock-list {
+  &::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 4px 0;
+  }
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #e8e8e8;
+    border-radius: 3px;
+
+    &:hover {
+      background: #d0d0d0;
+    }
+  }
 }
 </style>
