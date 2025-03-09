@@ -429,6 +429,11 @@ export default {
   border-radius: 4px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
+
+  .index-item {
+    user-select: none;
+    -webkit-user-select: none;
+  }
 }
 
 .divider {
