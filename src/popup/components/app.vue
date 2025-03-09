@@ -42,45 +42,60 @@
       </div>
     </div>
 
-    <div class="stock-list">
-      <div
-        v-for="stock in stocks"
-        :key="stock.code"
-        class="stock-item"
-        @dblclick="setBadgeStock(stock.code === badgeStock ? '' : stock.code)"
-        :class="{ 'is-pinned': stock.code === badgeStock }"
-      >
-        <div class="stock-info">
-          <div class="stock-name-code">
-            <span class="name">{{ stock.name }}</span>
-            <span class="code">{{ stock.code }}</span>
+    <draggable
+      v-model="stocks"
+      class="stock-list"
+      :animation="200"
+      ghost-class="ghost-item"
+      chosen-class="chosen-item"
+      drag-class="drag-item"
+      @start="onDragStart"
+      @end="onDragEnd"
+      item-key="code"
+      handle=".stock-info"
+    >
+      <template #item="{ element: stock }">
+        <div
+          class="stock-item"
+          @dblclick.stop="
+            setBadgeStock(stock.code === badgeStock ? '' : stock.code)
+          "
+          :class="{ 'is-pinned': stock.code === badgeStock }"
+        >
+          <div class="stock-info">
+            <div class="stock-name-code">
+              <span class="name">{{ stock.name }}</span>
+              <span class="code">{{ stock.code }}</span>
+            </div>
+            <div class="mini-chart">
+              <canvas
+                :ref="(el) => setCanvasRef(el, stock.code)"
+                width="120"
+                height="30"
+              ></canvas>
+            </div>
+            <div class="stock-price">
+              <span
+                :class="['current-price', stock.change >= 0 ? 'up' : 'down']"
+              >
+                {{ stock.price.toFixed(2) }}
+              </span>
+              <span
+                :class="['change-percent', stock.change >= 0 ? 'up' : 'down']"
+              >
+                {{ stock.change >= 0 ? '' : '-'
+                }}{{ Math.abs(stock.changePercent).toFixed(2) }}%
+              </span>
+            </div>
           </div>
-          <div class="mini-chart">
-            <canvas
-              :ref="(el) => setCanvasRef(el, stock.code)"
-              width="120"
-              height="30"
-            ></canvas>
-          </div>
-          <div class="stock-price">
-            <span :class="['current-price', stock.change >= 0 ? 'up' : 'down']">
-              {{ stock.price.toFixed(2) }}
-            </span>
-            <span
-              :class="['change-percent', stock.change >= 0 ? 'up' : 'down']"
-            >
-              {{ stock.change >= 0 ? '' : '-'
-              }}{{ Math.abs(stock.changePercent).toFixed(2) }}%
-            </span>
+          <div class="stock-actions">
+            <button class="remove-btn" @click="removeStock(stock.code)">
+              <span class="remove-icon">×</span>
+            </button>
           </div>
         </div>
-        <div class="stock-actions">
-          <button class="remove-btn" @click="removeStock(stock.code)">
-            <span class="remove-icon">×</span>
-          </button>
-        </div>
-      </div>
-    </div>
+      </template>
+    </draggable>
   </div>
 </template>
 
@@ -93,8 +108,12 @@ import {
   searchStock
 } from '@/utils/stockParser'
 import { isTradingTime } from '@/utils/tradingTime'
+import draggable from 'vuedraggable'
 
 export default {
+  components: {
+    draggable
+  },
   setup() {
     const newStockCode = ref('')
     const stocks = ref([])
@@ -352,6 +371,17 @@ export default {
       }, getUpdateInterval())
     }
 
+    // 添加拖拽相关方法
+    const onDragStart = () => {
+      // 开始拖拽时的处理
+    }
+
+    const onDragEnd = async () => {
+      // 更新 stockStore 中的顺序
+      stockStore.stockList = stocks.value.map((stock) => stock.code)
+      await stockStore.saveToStorage()
+    }
+
     onMounted(async () => {
       try {
         await Promise.all([stockStore.loadFromStorage(), updateMarketIndexes()])
@@ -399,7 +429,9 @@ export default {
       searchResults,
       handleSearch,
       selectSearchResult,
-      setCanvasRef
+      setCanvasRef,
+      onDragStart,
+      onDragEnd
     }
   }
 }
@@ -716,5 +748,26 @@ export default {
     color: #333;
     flex: 1;
   }
+}
+
+// 添加拖拽相关样式
+.ghost-item {
+  opacity: 0.5;
+  background: #f0f0f0;
+}
+
+.chosen-item {
+  background: #f5f5f5;
+}
+
+.drag-item {
+  opacity: 0.8;
+  transform: scale(0.95);
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stock-item {
+  transition: all 0.3s;
 }
 </style>
