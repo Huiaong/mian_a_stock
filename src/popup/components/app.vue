@@ -42,60 +42,61 @@
       </div>
     </div>
 
-    <draggable
-      v-model="stocks"
-      class="stock-list"
-      :animation="150"
-      ghost-class="ghost-class"
-      chosen-class="chosen-class"
-      drag-class="drag-class"
-      @start="onDragStart"
-      @end="onDragEnd"
-      item-key="code"
-      handle=".stock-info"
-    >
-      <template #item="{ element: stock }">
+    <div class="stock-list">
+      <div
+        v-for="stock in stocks"
+        :key="stock.code"
+        class="stock-item"
+        :class="{
+          'is-pinned': stock.code === badgeStock,
+          'is-dragging': draggingItem === stock.code,
+          'is-drag-over': dragOverItem === stock.code
+        }"
+        draggable="true"
+        @dragstart="handleDragStart($event, stock)"
+        @dragend="handleDragEnd"
+        @dragover.prevent="handleDragOver($event, stock)"
+        @dragenter.prevent="dragOverItem = stock.code"
+        @dragleave="dragOverItem = null"
+        @drop.prevent="handleDrop($event, stock)"
+        @dblclick.stop="
+          setBadgeStock(stock.code === badgeStock ? '' : stock.code)
+        "
+      >
         <div
-          class="stock-item"
-          @dblclick.stop="
-            setBadgeStock(stock.code === badgeStock ? '' : stock.code)
-          "
-          :class="{ 'is-pinned': stock.code === badgeStock }"
+          class="stock-info"
+          :class="{ grabbing: draggingItem === stock.code }"
         >
-          <div class="stock-info">
-            <div class="stock-name-code">
-              <span class="name">{{ stock.name }}</span>
-              <span class="code">{{ stock.code }}</span>
-            </div>
-            <div class="mini-chart">
-              <canvas
-                :ref="(el) => setCanvasRef(el, stock.code)"
-                width="120"
-                height="30"
-              ></canvas>
-            </div>
-            <div class="stock-price">
-              <span
-                :class="['current-price', stock.change >= 0 ? 'up' : 'down']"
-              >
-                {{ stock.price.toFixed(2) }}
-              </span>
-              <span
-                :class="['change-percent', stock.change >= 0 ? 'up' : 'down']"
-              >
-                {{ stock.change >= 0 ? '' : '-'
-                }}{{ Math.abs(stock.changePercent).toFixed(2) }}%
-              </span>
-            </div>
+          <div class="stock-name-code">
+            <span class="name">{{ stock.name }}</span>
+            <span class="code">{{ stock.code }}</span>
           </div>
-          <div class="stock-actions">
-            <button class="remove-btn" @click="removeStock(stock.code)">
-              <span class="remove-icon">×</span>
-            </button>
+          <div class="mini-chart">
+            <canvas
+              :ref="(el) => setCanvasRef(el, stock.code)"
+              width="120"
+              height="30"
+            ></canvas>
+          </div>
+          <div class="stock-price">
+            <span :class="['current-price', stock.change >= 0 ? 'up' : 'down']">
+              {{ stock.price.toFixed(2) }}
+            </span>
+            <span
+              :class="['change-percent', stock.change >= 0 ? 'up' : 'down']"
+            >
+              {{ stock.change >= 0 ? '' : '-'
+              }}{{ Math.abs(stock.changePercent).toFixed(2) }}%
+            </span>
           </div>
         </div>
-      </template>
-    </draggable>
+        <div class="stock-actions">
+          <button class="remove-btn" @click="removeStock(stock.code)">
+            <span class="remove-icon">×</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -108,12 +109,8 @@ import {
   searchStock
 } from '@/utils/stockParser'
 import { isTradingTime } from '@/utils/tradingTime'
-import draggable from 'vuedraggable'
 
 export default {
-  components: {
-    draggable
-  },
   setup() {
     const newStockCode = ref('')
     const stocks = ref([])
@@ -125,13 +122,8 @@ export default {
     const chartData = ref({})
     let updateInterval = null
     let checkIntervalTimer = null
-
-    const dragOptions = {
-      animation: 200,
-      group: 'description',
-      disabled: false,
-      ghostClass: 'ghost'
-    }
+    const draggingItem = ref(null)
+    const dragOverItem = ref(null)
 
     const updateStockData = async () => {
       if (stockStore.stockList.length === 0) {
@@ -378,17 +370,58 @@ export default {
       }, getUpdateInterval())
     }
 
-    const onDragStart = (evt) => {
-      evt.item.classList.add('dragging')
-      document.body.style.cursor = 'grabbing'
+    const handleDragStart = (e, stock) => {
+      draggingItem.value = stock.code
+      e.dataTransfer.effectAllowed = 'move'
+      e.target.classList.add('dragging')
+
+      // 创建自定义拖动图像
+      const dragEl = e.target.cloneNode(true)
+      dragEl.style.position = 'fixed'
+      dragEl.style.top = '-1000px'
+      dragEl.style.opacity = '0'
+      document.body.appendChild(dragEl)
+      e.dataTransfer.setDragImage(dragEl, 0, 0)
+      setTimeout(() => document.body.removeChild(dragEl), 0)
     }
 
-    const onDragEnd = async (evt) => {
-      evt.item.classList.remove('dragging')
-      document.body.style.cursor = ''
-      // 更新 stockStore 中的顺序
-      stockStore.stockList = stocks.value.map((stock) => stock.code)
+    const handleDragEnd = async () => {
+      draggingItem.value = null
+      dragOverItem.value = null
+      document.querySelectorAll('.stock-item').forEach((el) => {
+        el.classList.remove('dragging')
+      })
       await stockStore.saveToStorage()
+    }
+
+    const handleDragOver = (e, stock) => {
+      if (!draggingItem.value || draggingItem.value === stock.code) return
+
+      const draggedIndex = stocks.value.findIndex(
+        (s) => s.code === draggingItem.value
+      )
+      const targetIndex = stocks.value.findIndex((s) => s.code === stock.code)
+
+      if (draggedIndex === -1 || targetIndex === -1) return
+
+      const rect = e.currentTarget.getBoundingClientRect()
+      const midY = rect.top + rect.height / 2
+      const moveAfter = e.clientY > midY
+
+      if (
+        (moveAfter && draggedIndex < targetIndex) ||
+        (!moveAfter && draggedIndex > targetIndex)
+      ) {
+        const newStocks = [...stocks.value]
+        const [draggedStock] = newStocks.splice(draggedIndex, 1)
+        newStocks.splice(targetIndex, 0, draggedStock)
+        stocks.value = newStocks
+        stockStore.stockList = newStocks.map((s) => s.code)
+      }
+    }
+
+    const handleDrop = () => {
+      dragOverItem.value = null
     }
 
     onMounted(async () => {
@@ -439,9 +472,12 @@ export default {
       handleSearch,
       selectSearchResult,
       setCanvasRef,
-      onDragEnd,
-      onDragStart,
-      dragOptions
+      handleDragStart,
+      handleDragEnd,
+      handleDragOver,
+      handleDrop,
+      draggingItem,
+      dragOverItem
     }
   }
 }
@@ -474,7 +510,6 @@ export default {
 
   .index-item {
     user-select: none;
-    -webkit-user-select: none;
   }
 }
 
@@ -483,33 +518,6 @@ export default {
   background: #f0f0f0;
   margin: 0 0 12px 0;
   flex-shrink: 0;
-}
-
-.section-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  padding: 0 4px;
-
-  span {
-    font-size: 14px;
-    font-weight: 500;
-    color: #333;
-  }
-
-  .settings-btn {
-    padding: 4px 12px;
-    font-size: 12px;
-    color: #1890ff;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-
-    &:hover {
-      color: #40a9ff;
-    }
-  }
 }
 
 .header {
@@ -524,7 +532,6 @@ export default {
     .search-container {
       position: relative;
       flex: 1;
-      width: auto;
       margin-right: 36px;
 
       input {
@@ -549,7 +556,6 @@ export default {
     }
 
     .add-btn {
-      flex-shrink: 0;
       width: 50px;
       height: 32px;
       line-height: 32px;
@@ -570,7 +576,6 @@ export default {
 .stock-list {
   background: #fff;
   border-radius: 4px;
-  padding: 0;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
@@ -590,10 +595,6 @@ export default {
     }
   }
 
-  &::-webkit-scrollbar-track {
-    background-color: transparent;
-  }
-
   .stock-item {
     display: flex;
     justify-content: space-between;
@@ -601,18 +602,36 @@ export default {
     padding: 9px;
     border-bottom: 1px solid #f0f0f0;
     user-select: none;
-    -webkit-user-select: none;
-    transition: all 0.3s;
-    position: relative;
-    z-index: 1;
     background: white;
+    transition: transform 0.2s ease;
 
     &:last-child {
       border-bottom: none;
     }
 
-    &:hover {
-      z-index: 2;
+    &.is-pinned {
+      background: rgba(24, 144, 255, 0.05);
+    }
+
+    &.is-dragging {
+      opacity: 0.5;
+      background: #f0f7ff;
+      border: 1px dashed #1890ff;
+    }
+
+    &.is-drag-over {
+      transform: translateY(2px);
+      box-shadow: 0 -2px 0 #1890ff;
+
+      &::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #1890ff;
+        bottom: -1px;
+      }
     }
 
     .stock-info {
@@ -622,7 +641,7 @@ export default {
       margin-right: 8px;
       cursor: grab;
 
-      &:active {
+      &.grabbing {
         cursor: grabbing;
       }
 
@@ -634,7 +653,6 @@ export default {
           font-size: 15px;
           font-weight: 500;
           color: #333;
-          margin-right: 8px;
           display: block;
           white-space: nowrap;
           overflow: hidden;
@@ -666,12 +684,10 @@ export default {
           font-size: 16px;
           font-weight: 500;
           margin-bottom: 2px;
-          white-space: nowrap;
         }
 
         .change-percent {
           font-size: 13px;
-          white-space: nowrap;
         }
       }
     }
@@ -692,11 +708,6 @@ export default {
         &:hover {
           color: #666;
         }
-
-        .remove-icon {
-          display: block;
-          line-height: 1;
-        }
       }
     }
   }
@@ -708,21 +719,6 @@ export default {
 
 .down {
   color: #52c41a !important;
-}
-
-.stock-item {
-  &.is-pinned {
-    background: rgba(24, 144, 255, 0.05);
-  }
-
-  &.sortable-ghost {
-    opacity: 0;
-  }
-
-  &.sortable-drag {
-    position: relative;
-    z-index: 3;
-  }
 }
 
 .search-results {
@@ -747,10 +743,6 @@ export default {
   &::-webkit-scrollbar-thumb {
     background-color: #e8e8e8;
     border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background-color: transparent;
   }
 }
 
@@ -780,110 +772,6 @@ export default {
     font-size: 13px;
     color: #333;
     flex: 1;
-  }
-}
-
-// 修改过渡动画相关样式
-.flip-list-move {
-  transition: transform 0.3s;
-}
-
-.flip-list-enter-active,
-.flip-list-leave-active {
-  transition: all 0.5s;
-}
-
-.flip-list-enter-from,
-.flip-list-leave-to {
-  opacity: 0;
-  transform: translateX(30px);
-}
-
-.ghost-class {
-  background: #f0f0f0;
-  border: 1px dashed #1890ff;
-
-  * {
-    opacity: 0;
-  }
-}
-
-.chosen-class {
-  background: white;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  transform: scale(1.02);
-  z-index: 3;
-}
-
-.drag-class {
-  background: white;
-  transform: rotate(2deg) scale(1.02);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  z-index: 3;
-
-  .stock-info {
-    cursor: grabbing;
-  }
-}
-
-.stock-item {
-  transition: all 0.3s;
-  position: relative;
-  z-index: 1;
-  background: white;
-
-  &:hover {
-    z-index: 2;
-  }
-}
-
-.no-move {
-  transition: transform 0s;
-}
-
-.ghost {
-  opacity: 0.5;
-  background: #c8ebfb;
-}
-
-.list-group {
-  min-height: 20px;
-}
-
-.list-group-item {
-  cursor: move;
-}
-
-.list-group-item i {
-  cursor: pointer;
-}
-
-.stock-info {
-  cursor: grab;
-
-  &:active {
-    cursor: grabbing;
-  }
-}
-
-// 优化滚动条样式
-.stock-list {
-  &::-webkit-scrollbar-track {
-    background: transparent;
-    margin: 4px 0;
-  }
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #e8e8e8;
-    border-radius: 3px;
-
-    &:hover {
-      background: #d0d0d0;
-    }
   }
 }
 </style>
