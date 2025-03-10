@@ -616,12 +616,10 @@ export default {
     &.is-dragging {
       opacity: 0.5;
       background: #f0f7ff;
-      border: 1px dashed #1890ff;
     }
 
     &.is-drag-over {
-      transform: translateY(2px);
-      box-shadow: 0 -2px 0 #1890ff;
+      transform: translate3d(10px, 10px, 10px);
 
       &::after {
         content: '';
@@ -629,7 +627,6 @@ export default {
         left: 0;
         right: 0;
         height: 2px;
-        background: #1890ff;
         bottom: -1px;
       }
     }
