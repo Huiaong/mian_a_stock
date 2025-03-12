@@ -110,6 +110,29 @@ import {
 } from '@/utils/stockParser'
 import { isTradingTime } from '@/utils/tradingTime'
 
+// 添加防抖函数
+function useDebounce(fn, delay = 300) {
+  let timer = null
+
+  const debounced = (...args) => {
+    if (timer) {
+      clearTimeout(timer)
+    }
+    timer = setTimeout(() => {
+      fn(...args)
+      timer = null
+    }, delay)
+  }
+
+  onBeforeUnmount(() => {
+    if (timer) {
+      clearTimeout(timer)
+    }
+  })
+
+  return debounced
+}
+
 export default {
   setup() {
     const newStockCode = ref('')
@@ -187,6 +210,9 @@ export default {
       }
       searchResults.value = await searchStock(searchKeyword.value)
     }
+
+    // 使用防抖包装搜索函数
+    const debouncedSearch = useDebounce(handleSearch, 300)
 
     const selectSearchResult = async (result) => {
       await stockStore.addStock(result.code)
@@ -469,7 +495,7 @@ export default {
       setBadgeStock,
       searchKeyword,
       searchResults,
-      handleSearch,
+      handleSearch: debouncedSearch,
       selectSearchResult,
       setCanvasRef,
       handleDragStart,

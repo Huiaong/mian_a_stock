@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "缅A助手",
-  "description": "缅A助手-股票盯盘，实时关注你的股票，为你的投资保驾护航。（游资、打板、金融、投资、股票）",
+  "description": "缅A助手-股票盯盘，实时关注你的股票，为你的投资保驾护航。",
   "version": "1.0.1",
   "action": {
     "default_title": "缅A助手",
@@ -9,7 +9,10 @@
     "default_popup": "popup.html"
   },
   "permissions": ["storage"],
-  "host_permissions": ["https://qt.gtimg.cn/*", "https://suggest3.sinajs.cn/*"],
+  "host_permissions": [
+    "https://qt.gtimg.cn/q/*",
+    "https://suggest3.sinajs.cn/suggest/*"
+  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -20,6 +23,6 @@
     "128": "assets/images/icon128.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+    "extension_pages": "script-src 'self'; object-src 'self'"
   }
 }
