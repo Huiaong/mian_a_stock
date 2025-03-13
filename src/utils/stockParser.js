@@ -1,3 +1,5 @@
+import { stockStore, timeSeriesCache } from '../store/stock'
+
 // 修改市场指数代码常量，适配东方财富的代码格式
 export const MARKET_INDEX_CODES = {
   SH: '1.000001', // 上证指数
@@ -5,7 +7,6 @@ export const MARKET_INDEX_CODES = {
   HS300: '0.399300', // 沪深300
   KC50: '0.399640' // 创业板指
 }
-
 /**
  * 批量获取股票数据
  */
@@ -147,3 +148,70 @@ export async function searchStock(keyword) {
     return []
   }
 }
+
+/**
+ * 获取股票分时图数据
+ * @param {string} code 股票代码
+ * @returns {Promise<Array>} 分时数据数组
+ */
+export async function fetchTimeSeriesData(code) {
+  try {
+    // 检查缓存
+    const cachedData = await stockStore.getTimeSeriesCache(code)
+    if (cachedData) {
+      return cachedData
+    }
+
+    // 格式化代码，添加市场前缀
+    const formattedCode = code.startsWith('6') ? `1.${code}` : `0.${code}`
+
+    const params = new URLSearchParams({
+      fields1: 'f1,f2,f8,f10',
+      fields2: 'f51,f53,f56,f58',
+      secid: formattedCode,
+      ndays: 1,
+      iscr: 0,
+      iscca: 0
+    })
+
+    const response = await fetchWithRetry(
+      `https://push2.eastmoney.com/api/qt/stock/trends2/get?${params.toString()}`,
+      {
+        headers: {
+          Accept: '*/*',
+          Referer: 'https://quote.eastmoney.com/',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+        }
+      }
+    )
+
+    const data = await response.json()
+
+    if (!data.data?.trends) {
+      return []
+    }
+
+    // 解析分时数据
+    const chartPoints = data.data.trends.map((item) => {
+      const [time, price] = item.split(',')
+      return {
+        time: time.split(' ')[1],
+        price: parseFloat(price)
+      }
+    })
+
+    // 更新缓存
+    await stockStore.setTimeSeriesCache(code, chartPoints)
+
+    return chartPoints
+  } catch (error) {
+    console.error('获取分时数据失败:', error)
+    // 如果请求失败，尝试返回缓存的数据
+    return (await stockStore.getTimeSeriesCache(code)) || []
+  }
+}
+
+// 导出缓存清理方法
+export const clearTimeSeriesCache = () => timeSeriesCache.clear()
+export const cleanExpiredTimeSeriesCache = () => timeSeriesCache.cleanExpired()
