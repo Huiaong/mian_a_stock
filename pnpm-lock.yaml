@@ -11,9 +11,6 @@ importers:
       core-js:
         specifier: ^3.6.5
         version: 3.41.0
-      gbk.js:
-        specifier: ^0.3.0
-        version: 0.3.0
       vue:
         specifier: ^3.0.0
         version: 3.5.13
@@ -2635,9 +2632,6 @@ packages:
 
   functions-have-names@1.2.3:
     resolution: {integrity: sha512-xckBUXyTIqT97tq2x2AMb+g163b5JFysYk0x4qxNFwbfQkmNZoiRHb6sPzI9/QV33WeuvVYBUIiD4NzNIyqaRQ==}
-
-  gbk.js@0.3.0:
-    resolution: {integrity: sha512-rFEmSBm7/wSWXI5hq3CC4M55bFapT24Gj2hQfNK2Sy2rBs1snHWUCwRX2dg9jmy/LnR36xm+/ZLhycLWTI4Ilw==}
 
   gensync@1.0.0-beta.2:
     resolution: {integrity: sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==}
@@ -8726,8 +8720,6 @@ snapshots:
   functional-red-black-tree@1.0.1: {}
 
   functions-have-names@1.2.3: {}
-
-  gbk.js@0.3.0: {}
 
   gensync@1.0.0-beta.2: {}
 

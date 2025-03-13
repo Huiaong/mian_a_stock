@@ -23,6 +23,92 @@ function throttle(func, wait) {
   }
 }
 
+// 缓存相关的工具函数
+const timeSeriesCache = {
+  async get(code) {
+    try {
+      const result = await chrome.storage.local.get(['timeSeriesCache'])
+      const cache = result.timeSeriesCache || {}
+      if (!cache[code]) return null
+      
+      const now = Date.now()
+      const cacheTimeout = 60000 // 1分钟缓存
+      
+      if (now - cache[code].timestamp < cacheTimeout) {
+        return cache[code].data
+      }
+      
+      // 缓存过期，删除它
+      await this.delete(code)
+      return null
+    } catch (err) {
+      console.error('读取缓存失败:', err)
+      return null
+    }
+  },
+
+  async set(code, data) {
+    try {
+      const result = await chrome.storage.local.get(['timeSeriesCache'])
+      const cache = result.timeSeriesCache || {}
+      
+      cache[code] = {
+        data,
+        timestamp: Date.now()
+      }
+      
+      await chrome.storage.local.set({ timeSeriesCache: cache })
+    } catch (err) {
+      console.error('保存缓存失败:', err)
+    }
+  },
+
+  async delete(code) {
+    try {
+      const result = await chrome.storage.local.get(['timeSeriesCache'])
+      const cache = result.timeSeriesCache || {}
+      
+      delete cache[code]
+      await chrome.storage.local.set({ timeSeriesCache: cache })
+    } catch (err) {
+      console.error('删除缓存失败:', err)
+    }
+  },
+
+  async clear() {
+    try {
+      await chrome.storage.local.remove('timeSeriesCache')
+    } catch (err) {
+      console.error('清除缓存失败:', err)
+    }
+  },
+
+  async cleanExpired() {
+    try {
+      const result = await chrome.storage.local.get(['timeSeriesCache'])
+      const cache = result.timeSeriesCache || {}
+      const now = Date.now()
+      const cacheTimeout = 60000 // 1分钟缓存
+      let hasExpired = false
+
+      // 检查并删除过期数据
+      for (const code in cache) {
+        if (now - cache[code].timestamp >= cacheTimeout) {
+          delete cache[code]
+          hasExpired = true
+        }
+      }
+
+      // 只有在有过期数据时才更新存储
+      if (hasExpired) {
+        await chrome.storage.local.set({ timeSeriesCache: cache })
+      }
+    } catch (err) {
+      console.error('清理过期缓存失败:', err)
+    }
+  }
+}
+
 export const stockStore = reactive({
   stockList: [], // 自选股列表
   currentStock: null, // 当前关注的股票
@@ -34,6 +120,13 @@ export const stockStore = reactive({
     error: null,
     lastUpdate: null
   },
+
+  // 添加缓存相关方法
+  getTimeSeriesCache: (code) => timeSeriesCache.get(code),
+  setTimeSeriesCache: (code, data) => timeSeriesCache.set(code, data),
+  deleteTimeSeriesCache: (code) => timeSeriesCache.delete(code),
+  clearTimeSeriesCache: () => timeSeriesCache.clear(),
+  cleanExpiredTimeSeriesCache: () => timeSeriesCache.cleanExpired(),
 
   async addStock(code) {
     // 确保只存储数字代码

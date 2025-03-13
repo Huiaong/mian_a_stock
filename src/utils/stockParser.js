@@ -1,43 +1,88 @@
-import { decode } from 'gbk.js'
+import { stockStore, timeSeriesCache } from '../store/stock'
 
-// 修改市场指数代码常量，添加正确的前缀
+// 修改市场指数代码常量，适配东方财富的代码格式
 export const MARKET_INDEX_CODES = {
-  SH: 'sh000001', // 上证指数
-  SZ: 'sz399001', // 深证成指
-  HS300: 'sz399300', // 沪深300
-  KC50: 'sz399640' // 创业板指
+  SH: '1.000001', // 上证指数
+  SZ: '0.399001', // 深证成指
+  HS300: '0.399300', // 沪深300
+  KC50: '0.399640' // 创业板指
 }
-
 /**
- * 腾讯股票数据解析
- * API格式：http://qt.gtimg.cn/q=sh601318
+ * 批量获取股票数据
  */
-export function parseStockData(text) {
-  // 返回格式：v_sh601318="1~中国平安~601318~82.75~82.90~82.85~728258~364108~364150~82.75~119~82.74~55~82.73~30~82.72~25~82.71~17~82.76~4~82.77~8~82.78~10~82.79~22~82.80~24~~20240226153021~-0.15~-0.18~83.00~82.52~82.75/728258/6024393617~728258~602439~0.73~18.08~~~83.00~82.52~0.58~8469.50~8469.87~2.98~90.65~74.00~1.69~-11.79~6024393617~728258~0.73~18.08~0.69~";
-  const matches = text.match(/v_(?:sh|sz)\d{6}="([^"]+)"/)
-  if (!matches || !matches[1]) {
-    throw new Error('数据格式错误')
-  }
+export async function fetchStockData(codes) {
+  if (!Array.isArray(codes) || codes.length === 0) return []
 
-  const values = matches[1].split('~')
-  if (values.length < 40) {
-    throw new Error('数据不完整')
-  }
+  try {
+    // 格式化代码，添加市场前缀
+    const formattedCodes = codes.map((code) => {
+      // 如果已经有前缀则直接使用
+      if (code.includes('.')) return code
+      // 根据规则添加前缀: 6开头是上证，其他是深证
+      return code.startsWith('6') ? `1.${code}` : `0.${code}`
+    })
 
-  return {
-    name: values[1],
-    code: values[2],
-    price: parseFloat(values[3]),
-    previousClose: parseFloat(values[4]),
-    open: parseFloat(values[5]),
-    volume: parseInt(values[6]),
-    change: parseFloat(values[31]),
-    changePercent: parseFloat(values[32]),
-    high: parseFloat(values[33]),
-    low: parseFloat(values[34]),
-    amount: parseFloat(values[37]),
-    date: values[30].substring(0, 8),
-    time: values[30].substring(8)
+    // 将请求分批处理，每批最多30个股票
+    const batchSize = 30
+    const batches = []
+    for (let i = 0; i < formattedCodes.length; i += batchSize) {
+      batches.push(formattedCodes.slice(i, i + batchSize))
+    }
+
+    // 并发请求每一批数据
+    const results = await Promise.all(
+      batches.map(async (batchCodes) => {
+        const params = new URLSearchParams({
+          fields: 'f2,f3,f4,f8,f12,f14,f13,f15,f16,f17,f18,f5,f6', // 需要的字段
+          fltt: 2, // 价格格式
+          secids: batchCodes.join(',') // 股票代码列表
+        })
+
+        const response = await fetchWithRetry(
+          `https://push2.eastmoney.com/api/qt/ulist.np/get?${params.toString()}`,
+          {
+            headers: {
+              Accept: '*/*',
+              Referer: 'https://quote.eastmoney.com/',
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+            }
+          }
+        )
+        const data = await response.json()
+        return data.data?.diff || []
+      })
+    )
+
+    // 合并所有批次的结果并解析数据
+    return results
+      .flat()
+      .map((item) => {
+        try {
+          return {
+            name: item.f14, // 名称
+            code: item.f12, // 代码
+            price: parseFloat(item.f2), // 最新价
+            previousClose: parseFloat(item.f18 || 0), // 昨收价
+            open: parseFloat(item.f17 || 0), // 开盘价
+            volume: parseInt(item.f5 || 0), // 成交量
+            change: parseFloat(item.f4), // 涨跌额
+            changePercent: parseFloat(item.f3), // 涨跌幅
+            high: parseFloat(item.f15 || 0), // 最高
+            low: parseFloat(item.f16 || 0), // 最低
+            amount: parseFloat(item.f6 || 0), // 成交额
+            date: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+            time: new Date().toTimeString().slice(0, 8) // 时间
+          }
+        } catch (err) {
+          console.error('解析股票数据失败:', err)
+          return null
+        }
+      })
+      .filter((data) => data !== null)
+  } catch (err) {
+    console.error('获取股票数据失败:', err)
+    return []
   }
 }
 
@@ -58,109 +103,115 @@ async function fetchWithRetry(url, options, retries = 3) {
 }
 
 /**
- * 批量获取股票数据
- */
-export async function fetchStockData(codes) {
-  if (!Array.isArray(codes) || codes.length === 0) return []
-
-  try {
-    // 添加市场前缀后再请求
-    const formattedCodes = codes.map((code) => {
-      // 如果已经有前缀则直接使用
-      if (code.startsWith('sh') || code.startsWith('sz')) return code
-      // 否则根据规则添加前缀
-      return code.startsWith('6') ? `sh${code}` : `sz${code}`
-    })
-
-    // 将请求分批处理，每批最多30个股票
-    const batchSize = 30
-    const batches = []
-    for (let i = 0; i < formattedCodes.length; i += batchSize) {
-      batches.push(formattedCodes.slice(i, i + batchSize))
-    }
-
-    // 并发请求每一批数据
-    const results = await Promise.all(
-      batches.map(async (batchCodes) => {
-        const response = await fetchWithRetry(
-          `https://qt.gtimg.cn/q=${batchCodes.join(',')}`,
-          {
-            headers: {
-              Accept: '*/*',
-              Referer: 'https://finance.qq.com'
-            }
-          }
-        )
-        const buffer = await response.arrayBuffer()
-        return decode(new Uint8Array(buffer))
-      })
-    )
-
-    // 合并所有批次的结果
-    const stockDataList = results
-      .join('\n')
-      .split('\n')
-      .filter((line) => line.trim())
-
-    return stockDataList
-      .map((dataLine) => {
-        try {
-          const data = parseStockData(dataLine)
-          // 返回时去掉市场前缀
-          return {
-            ...data,
-            code: data.code // 直接使用数字代码
-          }
-        } catch (err) {
-          console.error('解析股票数据失败:', err)
-          return null
-        }
-      })
-      .filter((data) => data !== null)
-  } catch (err) {
-    console.error('获取股票数据失败:', err)
-    return []
-  }
-}
-
-/**
  * 搜索股票
  * @param {string} keyword 搜索关键词（股票代码、名称或拼音首字母）
  */
 export async function searchStock(keyword) {
   try {
+    // 使用东方财富的搜索建议 API
     const response = await fetch(
-      `https://suggest3.sinajs.cn/suggest/type=11,12&key=${encodeURIComponent(keyword)}`,
+      `https://searchapi.eastmoney.com/api/suggest/get?input=${encodeURIComponent(
+        keyword
+      )}&type=14&token=D43BF722C8E33BDC906FB84D85E326E8&markettype=&mktnum=&jys=&classify=&securitytype=&status=&count=10&_=${Date.now()}`,
       {
         headers: {
           Accept: '*/*',
-          Referer: 'https://finance.sina.com.cn'
+          Referer: 'https://www.eastmoney.com/'
         }
       }
     )
-    const buffer = await response.arrayBuffer()
-    const text = decode(new Uint8Array(buffer))
 
-    const matches = text.match(/="(.*)"/)
-    if (!matches || !matches[1]) return []
+    const data = await response.json()
 
-    return matches[1]
-      .split(';')
-      .filter((item) => item)
-      .map((item) => {
-        const parts = item.split(',')
+    if (!data.QuotationCodeTable.Data) return []
 
-        // 统一返回6位数字代码
-        return {
-          code: parts[2], // 直接使用数字代码
-          name:
-            parts[0].startsWith('sh') || parts[0].startsWith('sz')
-              ? parts[6]
-              : parts[0]
-        }
-      })
+    return data.QuotationCodeTable.Data.map((item) => {
+      // 从证券代码中提取数字代码
+      const numericCode = item.Code.replace(/^(SH|SZ)/, '')
+
+      return {
+        code: numericCode, // 返回6位数字代码
+        name: item.Name
+      }
+    }).filter((item) => {
+      // 只返回 A 股股票（排除基金、债券等）
+      const code = item.code
+      return (
+        code.length === 6 &&
+        (code.startsWith('60') || // 上证 A 股
+          code.startsWith('00') || // 深证 A 股
+          code.startsWith('30')) // 创业板
+      )
+    })
   } catch (err) {
     console.error('搜索股票失败:', err)
     return []
   }
 }
+
+/**
+ * 获取股票分时图数据
+ * @param {string} code 股票代码
+ * @returns {Promise<Array>} 分时数据数组
+ */
+export async function fetchTimeSeriesData(code) {
+  try {
+    // 检查缓存
+    const cachedData = await stockStore.getTimeSeriesCache(code)
+    if (cachedData) {
+      return cachedData
+    }
+
+    // 格式化代码，添加市场前缀
+    const formattedCode = code.startsWith('6') ? `1.${code}` : `0.${code}`
+
+    const params = new URLSearchParams({
+      fields1: 'f1,f2,f8,f10',
+      fields2: 'f51,f53,f56,f58',
+      secid: formattedCode,
+      ndays: 1,
+      iscr: 0,
+      iscca: 0
+    })
+
+    const response = await fetchWithRetry(
+      `https://push2.eastmoney.com/api/qt/stock/trends2/get?${params.toString()}`,
+      {
+        headers: {
+          Accept: '*/*',
+          Referer: 'https://quote.eastmoney.com/',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+        }
+      }
+    )
+
+    const data = await response.json()
+
+    if (!data.data?.trends) {
+      return []
+    }
+
+    // 解析分时数据
+    const chartPoints = data.data.trends.map((item) => {
+      const [time, price] = item.split(',')
+      return {
+        time: time.split(' ')[1],
+        price: parseFloat(price)
+      }
+    })
+
+    // 更新缓存
+    await stockStore.setTimeSeriesCache(code, chartPoints)
+
+    return chartPoints
+  } catch (error) {
+    console.error('获取分时数据失败:', error)
+    // 如果请求失败，尝试返回缓存的数据
+    return (await stockStore.getTimeSeriesCache(code)) || []
+  }
+}
+
+// 导出缓存清理方法
+export const clearTimeSeriesCache = () => timeSeriesCache.clear()
+export const cleanExpiredTimeSeriesCache = () => timeSeriesCache.cleanExpired()

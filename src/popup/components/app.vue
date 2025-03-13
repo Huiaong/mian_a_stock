@@ -106,7 +106,8 @@ import { stockStore } from '@/store/stock'
 import {
   fetchStockData,
   MARKET_INDEX_CODES,
-  searchStock
+  searchStock,
+  fetchTimeSeriesData
 } from '@/utils/stockParser'
 import { isTradingTime } from '@/utils/tradingTime'
 
@@ -220,7 +221,7 @@ export default {
       searchResults.value = []
       await updateStockData()
       // 添加股票后立即获取分时数据
-      await fetchTimeSeriesData(result.code)
+      await fetchTimeSeries(result.code)
     }
 
     const removeStock = async (code) => {
@@ -323,28 +324,10 @@ export default {
       }
     }
 
-    const fetchTimeSeriesData = async (code) => {
+    const fetchTimeSeries = async (code) => {
       try {
-        const formattedCode = code.startsWith('6') ? `sh${code}` : `sz${code}`
-        const response = await fetch(
-          `https://web.ifzq.gtimg.cn/appstock/app/minute/query?_var=min_data_${formattedCode}&code=${formattedCode}`
-        )
-        const text = await response.text()
-
-        // 解析数据，移除 JavaScript 变量声明部分
-        const jsonStr = text.replace(`min_data_${formattedCode}=`, '')
-        const data = JSON.parse(jsonStr)
-
-        // 提取分时数据
-        const minData = data.data[formattedCode].data.data
-        const chartPoints = minData.map((item) => {
-          const [time, price] = item.split(' ')
-          return {
-            time,
-            price: parseFloat(price)
-          }
-        })
-
+        // 直接使用 stockParser.js 中的方法
+        const chartPoints = await fetchTimeSeriesData(code)
         chartData.value[code] = chartPoints
         drawMiniChart(code)
       } catch (error) {
@@ -458,7 +441,7 @@ export default {
 
         // 初始化分时图数据
         for (const stock of stocks.value) {
-          await fetchTimeSeriesData(stock.code)
+          await fetchTimeSeries(stock.code)
         }
 
         // 设置定时刷新，同时更新股票数据和分时图

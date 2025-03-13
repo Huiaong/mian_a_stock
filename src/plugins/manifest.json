@@ -11,7 +11,9 @@
   "permissions": ["storage"],
   "host_permissions": [
     "https://qt.gtimg.cn/q/*",
-    "https://suggest3.sinajs.cn/suggest/*"
+    "https://push2.eastmoney.com/*",
+    "https://push2his.eastmoney.com/*",
+    "https://searchapi.eastmoney.com/*"
   ],
   "background": {
     "service_worker": "background.js",
