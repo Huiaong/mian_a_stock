@@ -1,4 +1,4 @@
-import { stockStore, timeSeriesCache } from '../store/stock'
+import { stockStore } from '../store/stock'
 
 // 修改市场指数代码常量，适配东方财富的代码格式
 export const MARKET_INDEX_CODES = {
@@ -211,7 +211,3 @@ export async function fetchTimeSeriesData(code) {
     return (await stockStore.getTimeSeriesCache(code)) || []
   }
 }
-
-// 导出缓存清理方法
-export const clearTimeSeriesCache = () => timeSeriesCache.clear()
-export const cleanExpiredTimeSeriesCache = () => timeSeriesCache.cleanExpired()

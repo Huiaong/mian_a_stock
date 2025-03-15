@@ -146,6 +146,7 @@ export default {
     const chartData = ref({})
     let updateInterval = null
     let checkIntervalTimer = null
+    let timeSeriesInterval = null
     const draggingItem = ref(null)
     const dragOverItem = ref(null)
 
@@ -262,6 +263,9 @@ export default {
       ctx.clearRect(0, 0, width, height)
 
       if (data.length > 0) {
+        // 总共需要240个点（4小时交易时间）
+        const totalPoints = 240
+        const currentPoints = data.length
         const prices = data.map((item) => item.price)
         const basePrice = prices[0] // 使用开盘价作为基准
         const maxDiff = Math.max(
@@ -295,8 +299,10 @@ export default {
         ctx.strokeStyle = isUp ? '#f5222d' : '#52c41a'
         ctx.lineWidth = 1
 
+        // 计算每个点的位置，考虑总长度为240点
         data.forEach((point, index) => {
-          const x = padding + (chartWidth * index) / (data.length - 1)
+          // 根据当前点数调整x轴位置，确保线条从左开始绘制
+          const x = padding + (chartWidth * index) / (totalPoints - 1)
           const y = padding + chartHeight * (1 - (point.price - min) / range)
           if (index === 0) {
             ctx.moveTo(x, y)
@@ -305,22 +311,26 @@ export default {
           }
         })
 
-        // 添加渐变填充
-        const gradient = ctx.createLinearGradient(0, 0, 0, height)
-        if (isUp) {
-          gradient.addColorStop(0, 'rgba(245, 34, 45, 0.1)')
-          gradient.addColorStop(1, 'rgba(245, 34, 45, 0)')
-        } else {
-          gradient.addColorStop(0, 'rgba(82, 196, 26, 0.1)')
-          gradient.addColorStop(1, 'rgba(82, 196, 26, 0)')
-        }
+        // 如果当前点数小于240，绘制剩余空白部分的边框
+        if (currentPoints < totalPoints) {
+          const lastPoint = data[data.length - 1]
+          const lastX =
+            padding + (chartWidth * (currentPoints - 1)) / (totalPoints - 1)
+          const lastY =
+            padding + chartHeight * (1 - (lastPoint.price - min) / range)
 
-        ctx.stroke()
-        ctx.lineTo(width - padding, height - padding)
-        ctx.lineTo(padding, height - padding)
-        ctx.closePath()
-        ctx.fillStyle = gradient
-        ctx.fill()
+          // 绘制虚线表示未来时间
+          ctx.stroke() // 先结束实线部分
+          ctx.beginPath()
+          ctx.setLineDash([2, 2])
+          ctx.moveTo(lastX, lastY)
+          ctx.lineTo(width - padding, lastY)
+          ctx.strokeStyle = '#999'
+          ctx.stroke()
+          ctx.setLineDash([])
+        } else {
+          ctx.stroke()
+        }
       }
     }
 
@@ -368,13 +378,10 @@ export default {
         clearInterval(updateInterval)
       }
 
+      // 主更新定时器 - 更新股票数据和市场指数
       updateInterval = setInterval(async () => {
         if (isTradingTime()) {
-          await Promise.all([
-            updateStockData(),
-            updateMarketIndexes(),
-            ...stocks.value.map((stock) => fetchTimeSeriesData(stock.code))
-          ])
+          await Promise.all([updateStockData(), updateMarketIndexes()])
         }
       }, getUpdateInterval())
     }
@@ -444,8 +451,17 @@ export default {
           await fetchTimeSeries(stock.code)
         }
 
-        // 设置定时刷新，同时更新股票数据和分时图
+        // 设置主定时刷新
         updateTimer()
+
+        // 设置分时图定时刷新 - 每分钟更新一次
+        timeSeriesInterval = setInterval(async () => {
+          if (isTradingTime()) {
+            await Promise.all(
+              stocks.value.map((stock) => fetchTimeSeries(stock.code))
+            )
+          }
+        }, 60000) // 每分钟更新一次
 
         // 定期检查并调整更新频率
         checkIntervalTimer = setInterval(() => {
@@ -462,6 +478,10 @@ export default {
       if (updateInterval) {
         clearInterval(updateInterval)
         updateInterval = null
+      }
+      if (timeSeriesInterval) {
+        clearInterval(timeSeriesInterval)
+        timeSeriesInterval = null
       }
       if (checkIntervalTimer) {
         clearInterval(checkIntervalTimer)
