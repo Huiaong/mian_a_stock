@@ -79,7 +79,7 @@ export const groupStore = reactive({
     }
   },
 
-  async getCurrentGroup() {
+  getCurrentGroup() {
     return this.groups.find((g) => g.id === this.currentGroupId)
   },
 

@@ -42,9 +42,9 @@ export default defineComponent({
   setup() {
     const stocks = ref()
     const groups = ref()
-    const marketIndexes = ref()
+    const marketIndexes = ref([])
     const badgeStock = ref('')
-    const chartData = ref()
+    const chartData = ref({})
     let updateInterval = null
     let checkIntervalTimer = null
     let timeSeriesInterval = null
@@ -197,7 +197,7 @@ export default defineComponent({
 
     const handleGroupChange = async (groupId) => {
       currentGroup.value = groupId
-      groupStore.setCurrentGroupId(groupId)
+      groupStore.currentGroupId = groupId
 
       const currentGroupData = groupStore.getCurrentGroup()
       if (currentGroupData) {
