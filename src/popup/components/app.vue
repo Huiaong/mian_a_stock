@@ -4,12 +4,13 @@
     <div class="market-index">
       <div class="index-item" v-for="index in marketIndexes" :key="index.code">
         <div class="index-name">{{ index.name }}</div>
-        <div :class="['index-price', index.change >= 0 ? 'up' : 'down']">
-          {{ index.price.toFixed(2) }}
-        </div>
-        <div :class="['index-change', index.change >= 0 ? 'up' : 'down']">
-          {{ index.change >= 0 ? '' : '-'
-          }}{{ Math.abs(index.changePercent).toFixed(2) }}%
+        <div class="index-info">
+          <div :class="['index-price', index.change >= 0 ? 'up' : 'down']">
+            {{ index.price.toFixed(2) }}
+          </div>
+          <div :class="['index-change', index.change >= 0 ? 'up' : 'down']">
+            {{ index.changePercent.toFixed(2) }}%
+          </div>
         </div>
       </div>
     </div>
@@ -233,6 +234,12 @@ export default {
         // 通知后台更新图标
         chrome.runtime.sendMessage({ type: 'UPDATE_BADGE' })
       }
+
+      // 清理分时图相关数据
+      delete chartData.value[code] // 删除分时数据
+      delete canvasRefs.value[code] // 删除canvas引用
+      await stockStore.deleteTimeSeriesCache(code) // 删除缓存的分时数据
+
       // 删除股票
       await stockStore.removeStock(code)
       await updateStockData()
@@ -527,18 +534,58 @@ export default {
 }
 
 .market-index {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  margin-bottom: 12px;
-  background: #fff;
-  padding: 12px;
-  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
+  padding: 8px 12px;
+  background: #fff;
 
   .index-item {
-    user-select: none;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 4px;
+
+    .index-name {
+      font-size: 15px;
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .index-info {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+
+      .index-price {
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1.2;
+        margin-bottom: 2px;
+
+        &.up {
+          color: #f5222d;
+        }
+        &.down {
+          color: #52c41a;
+        }
+      }
+
+      .index-change {
+        font-size: 13px;
+        line-height: 1.2;
+
+        &.up {
+          color: #f5222d;
+        }
+        &.down {
+          color: #52c41a;
+        }
+      }
+    }
   }
 }
 
@@ -672,7 +719,7 @@ export default {
       }
 
       .stock-name-code {
-        width: 68px;
+        width: 80px;
         flex-shrink: 0;
 
         .name {
