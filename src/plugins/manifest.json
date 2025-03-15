@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "缅A助手",
   "description": "缅A助手-股票盯盘，实时关注你的股票，为你的投资保驾护航。",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "action": {
     "default_title": "缅A助手",
     "default_icon": "assets/images/icon48.png",
