@@ -1,12 +1,3 @@
-import { stockStore } from '../store/stock'
-
-// 修改市场指数代码常量，适配东方财富的代码格式
-export const MARKET_INDEX_CODES = {
-  SH: '1.000001', // 上证指数
-  SZ: '0.399001', // 深证成指
-  HS300: '0.399300', // 沪深300
-  KC50: '0.399640' // 创业板指
-}
 /**
  * 批量获取股票数据
  */
@@ -156,12 +147,6 @@ export async function searchStock(keyword) {
  */
 export async function fetchTimeSeriesData(code) {
   try {
-    // 检查缓存
-    const cachedData = await stockStore.getTimeSeriesCache(code)
-    if (cachedData) {
-      return cachedData
-    }
-
     // 格式化代码，添加市场前缀
     const formattedCode = code.startsWith('6') ? `1.${code}` : `0.${code}`
 
@@ -201,13 +186,10 @@ export async function fetchTimeSeriesData(code) {
       }
     })
 
-    // 更新缓存
-    await stockStore.setTimeSeriesCache(code, chartPoints)
-
     return chartPoints
   } catch (error) {
     console.error('获取分时数据失败:', error)
     // 如果请求失败，尝试返回缓存的数据
-    return (await stockStore.getTimeSeriesCache(code)) || []
+    return []
   }
 }
