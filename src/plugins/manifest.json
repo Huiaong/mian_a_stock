@@ -10,9 +10,7 @@
   },
   "permissions": ["storage"],
   "host_permissions": [
-    "https://qt.gtimg.cn/q/*",
     "https://push2.eastmoney.com/*",
-    "https://push2his.eastmoney.com/*",
     "https://searchapi.eastmoney.com/*"
   ],
   "background": {
