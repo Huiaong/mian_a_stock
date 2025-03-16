@@ -29,5 +29,15 @@ module.exports = {
     'no-unused-vars': [2, { vars: 'all', args: 'after-used' }],
     'no-console': 'off',
     'no-debugger': process.env.NODE_ENV === 'production' ? 'warn' : 'off'
+  },
+  settings: {
+    'import/resolver': {
+      alias: {
+        map: [
+          ['@', './src']
+        ],
+        extensions: ['.js', '.jsx', '.vue', '.ts', '.tsx']
+      }
+    }
   }
 }

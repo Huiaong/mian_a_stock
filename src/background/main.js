@@ -1,4 +1,4 @@
-import { stockStore } from '@/store/stock'
+import { badge } from '@/store/stock'
 import { fetchStockData } from '@/utils/stockParser'
 import { isTradingTime } from '@/utils/tradingTime'
 
@@ -15,16 +15,16 @@ function updateBadge(change) {
 
 // 定时获取股票数据
 async function updateStockData() {
-  await stockStore.loadFromStorage()
+  await badge.loadFromStorage()
 
   // 如果没有设置要显示的股票，则不显示badge
-  if (!stockStore.badgeStock) {
+  if (!badge.badgeStock) {
     chrome.action.setBadgeText({ text: '' })
     return
   }
 
   try {
-    const stockDataList = await fetchStockData([stockStore.badgeStock])
+    const stockDataList = await fetchStockData([badge.badgeStock])
     if (stockDataList.length > 0) {
       updateBadge(stockDataList[0].changePercent)
     }
@@ -44,7 +44,7 @@ chrome.runtime.onMessage.addListener((message) => {
 // 初始化
 async function init() {
   try {
-    await stockStore.loadFromStorage()
+    await badge.loadFromStorage()
     await updateStockData()
 
     setInterval(() => {
