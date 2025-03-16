@@ -156,7 +156,6 @@ export default defineComponent({
     const newGroupInputRef = ref(null)
     let source = null
     const visible = ref(props.modelValue)
-    const localGroups = ref([])
 
     // 监听 modelValue 变化
     watch(
@@ -164,8 +163,6 @@ export default defineComponent({
       (val) => {
         visible.value = val
         if (val) {
-          // 打开对话框时，复制一份组数据用于编辑
-          localGroups.value = JSON.parse(JSON.stringify(props.groups))
           // 重置编辑状态
           editingGroupId.value = null
           isAddingNew.value = false
@@ -324,15 +321,15 @@ export default defineComponent({
       // 重置 source
       source = null
 
+      const groups = props.groups
+
       // 如果顺序没有变化，直接返回
       if (
-        JSON.stringify(newGroupIds) ===
-        JSON.stringify(localGroups.value.map((g) => g.id))
+        JSON.stringify(newGroupIds) === JSON.stringify(groups.map((g) => g.id))
       ) {
         return
       }
 
-      // 更新 groups
       emit('update:groups', newGroupIds)
     }
 
@@ -356,8 +353,7 @@ export default defineComponent({
       groupListRef,
       editInputRef,
       newGroupInputRef,
-      visible,
-      localGroups
+      visible
     }
   }
 })

@@ -45,7 +45,7 @@ export default defineComponent({
   emits: ['show-kline'],
   setup(props, { emit }) {
     const stocks = ref([])
-    const groups = ref({})
+    const groups = ref([])
     const marketIndexes = ref([])
     const badgeStock = ref('')
     const chartData = ref({})
@@ -372,9 +372,13 @@ export default defineComponent({
       // 更新 store
       await groupStore.updateGroupsOrder(newGroupIds)
 
+      // 先将 groups 设置为空数组，强制触发变化
+      groups.value = []
+
+      // 然后在下一个 tick 设置为最新值
       groups.value = groupStore.groups
 
-      console.log('groups', groups.value)
+      console.log('Dashboard groups updated:', groups.value)
     }
 
     // 动态调整更新频率
