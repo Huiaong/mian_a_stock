@@ -22,6 +22,77 @@ export const stockSearch = reactive({
   },
   async fetchTimeSeriesData(code) {
     return await fetchTimeSeriesData(code)
+  },
+
+  // 获取K线数据
+  async getKLineData(code, period = 'day') {
+    try {
+      // 处理股票代码格式
+      let secid = code
+      if (!code.includes('.')) {
+        // 转换为东方财富格式的股票代码
+        const market = code.startsWith('6') ? '1' : '0'
+        secid = `${market}.${code}`
+      }
+
+      // 根据周期设置参数
+      let klt = 101 // 默认日K
+      switch (period) {
+        case 'week':
+          klt = 102 // 周K
+          break
+        case 'month':
+          klt = 103 // 月K
+          break
+        case 'year':
+          klt = 104 // 年K
+          break
+        case 'min':
+          klt = 1 // 1分钟
+          break
+        case 'min5':
+          klt = 5 // 5分钟
+          break
+        case 'min15':
+          klt = 15 // 15分钟
+          break
+        case 'min30':
+          klt = 30 // 30分钟
+          break
+        case 'min60':
+          klt = 60 // 60分钟
+          break
+      }
+
+      // 构建API URL
+      // fqt: 0-不复权, 1-前复权, 2-后复权
+      // 东方财富K线数据API
+      const url = `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secid}&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=${klt}&fqt=1&end=20500101&lmt=120`
+
+      const response = await fetch(url)
+      const data = await response.json()
+
+      if (data.data && data.data.klines) {
+        // 解析K线数据
+        return data.data.klines.map((item) => {
+          const [date, open, close, high, low, volume, amount, ...rest] = item.split(',')
+          return {
+            date,
+            open: parseFloat(open),
+            close: parseFloat(close),
+            high: parseFloat(high),
+            low: parseFloat(low),
+            volume: parseFloat(volume),
+            amount: parseFloat(amount)
+          }
+        })
+      }
+
+      return []
+    } catch (error) {
+      console.error('获取K线数据失败:', error)
+      return []
+    }
   }
 })
 

@@ -13,7 +13,7 @@
         <span class="name">{{ stock.name }}</span>
         <span class="code">{{ stock.code }}</span>
       </div>
-      <div class="mini-chart">
+      <div class="mini-chart" @click="showKLineChart">
         <canvas :ref="setCanvasRef" width="120" height="30"></canvas>
       </div>
       <div class="stock-price-info">
@@ -57,7 +57,7 @@ export default {
       default: () => []
     }
   },
-  emits: ['remove', 'pin', 'canvas-ready'],
+  emits: ['remove', 'pin', 'canvas-ready', 'show-kline'],
   setup(props, { emit }) {
     const canvas = ref(null)
 
@@ -67,9 +67,15 @@ export default {
         emit('canvas-ready', props.stock.code, el)
       }
     }
+    
+    // 添加显示K线图的方法
+    const showKLineChart = () => {
+      emit('show-kline', props.stock.code, props.stock.name)
+    }
 
     return {
-      setCanvasRef
+      setCanvasRef,
+      showKLineChart
     }
   }
 }
@@ -124,6 +130,11 @@ export default {
     .mini-chart {
       width: 120px;
       height: 30px;
+      cursor: pointer;
+      
+      &:hover {
+        opacity: 0.8;
+      }
     }
 
     .stock-price-info {

@@ -1,25 +1,35 @@
 <template>
-  <div class="popup_page">
-    <market-index :market-indexes="marketIndexes" />
-    <div class="divider"></div>
-    <stock-search @select="selectSearchResult" />
-    <group-tabs
-      v-model="currentGroup"
-      :groups="groups"
-      :stocks="stocks"
-      :badge-stock="badgeStock"
-      :chart-data="chartData"
-      @groupChange="handleGroupChange"
-      @show-manage="showGroupDialog = true"
-      @remove="removeStock"
-      @setBadge="setBadgeStock"
-      @canvas-ready="handleCanvasReady"
-      @stockReload="updateStockData"
-    />
-    <group-manage-dialog
-      v-model="showGroupDialog"
-      :groups="groups"
-      @update:groups="handleGroupsUpdate"
+  <div class="popup_page" :class="{ expanded: showKLineDialog }">
+    <div v-if="!showKLineDialog" class="main-content">
+      <market-index :market-indexes="marketIndexes" />
+      <div class="divider"></div>
+      <stock-search @select="selectSearchResult" />
+      <group-tabs
+        v-model="currentGroup"
+        :groups="groups"
+        :stocks="stocks"
+        :badge-stock="badgeStock"
+        :chart-data="chartData"
+        @groupChange="handleGroupChange"
+        @showManage="showGroupDialog = true"
+        @remove="removeStock"
+        @setBadge="setBadgeStock"
+        @canvas-ready="handleCanvasReady"
+        @stockReload="updateStockData"
+        @show-kline="showKLine"
+      />
+      <group-manage-dialog
+        v-model="showGroupDialog"
+        :groups="groups"
+        @update:groups="handleGroupsUpdate"
+      />
+    </div>
+
+    <k-line-popup
+      v-if="showKLineDialog"
+      :stock-code="selectedStockCode"
+      :stock-name="selectedStockName"
+      @close="closeKLineDialog"
     />
   </div>
 </template>
@@ -32,13 +42,15 @@ import MarketIndex from '@/popup/components/MarketIndex.vue'
 import StockSearch from '@/popup/components/StockSearch.vue'
 import GroupTabs from '@/popup/components/GroupTabs.vue'
 import GroupManageDialog from '@/popup/components/GroupManageDialog.vue'
+import KLinePopup from '@/popup/components/KLinePopup.vue'
 
 export default defineComponent({
   components: {
     MarketIndex,
     StockSearch,
     GroupTabs,
-    GroupManageDialog
+    GroupManageDialog,
+    KLinePopup
   },
   setup() {
     const stocks = ref([])
@@ -51,6 +63,11 @@ export default defineComponent({
     let timeSeriesInterval = null
     const showGroupDialog = ref(false)
     const currentGroup = ref('')
+
+    // 添加K线图相关状态
+    const showKLineDialog = ref(false)
+    const selectedStockCode = ref('')
+    const selectedStockName = ref('')
 
     onMounted(async () => {
       try {
@@ -364,6 +381,18 @@ export default defineComponent({
       await syncManager.syncAll()
     }
 
+    // 显示K线图
+    const showKLine = (code, name) => {
+      selectedStockCode.value = code
+      selectedStockName.value = name
+      showKLineDialog.value = true
+    }
+
+    // 关闭K线图
+    const closeKLineDialog = () => {
+      showKLineDialog.value = false
+    }
+
     return {
       stocks,
       groups,
@@ -378,7 +407,12 @@ export default defineComponent({
       chartData,
       handleGroupsUpdate,
       handleGroupChange,
-      updateStockData
+      updateStockData,
+      showKLineDialog,
+      selectedStockCode,
+      selectedStockName,
+      showKLine,
+      closeKLineDialog
     }
   }
 })
@@ -416,6 +450,22 @@ export default defineComponent({
   flex-direction: column;
   overflow: hidden;
   box-sizing: border-box;
+  transition:
+    width 0.3s,
+    height 0.3s;
+
+  &.expanded {
+    width: 600px;
+    height: 450px;
+  }
+
+  .main-content {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
 }
 
 .divider {

@@ -22,6 +22,7 @@
           @remove="$emit('remove', stock.code)"
           @pin="$emit('setBadge', stock.code === badgeStock ? '' : stock.code)"
           @canvas-ready="handleCanvasReady"
+          @show-kline="handleShowKline"
           class="stock-item"
         />
       </transition-group>
@@ -55,10 +56,14 @@ export default {
       required: true
     }
   },
-  emits: ['remove', 'setBadge', 'canvas-ready', 'stockReRanking'],
+  emits: ['remove', 'setBadge', 'canvas-ready', 'stockReRanking', 'show-kline'],
   setup(props, { emit }) {
     const stockListRef = ref(null)
     let source = null
+
+    const handleShowKline = (code, name) => {
+      emit('show-kline', code, name)
+    }
 
     // 添加列表拖拽事件处理
     const handleListDragStart = (event) => {
@@ -127,7 +132,8 @@ export default {
       handleListDragStart,
       handleListDragEnter,
       handleListDragEnd,
-      handleCanvasReady
+      handleCanvasReady,
+      handleShowKline
     }
   }
 }

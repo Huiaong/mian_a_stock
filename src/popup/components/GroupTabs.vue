@@ -19,6 +19,7 @@
           @remove="$emit('remove', $event)"
           @setBadge="$emit('setBadge', $event)"
           @canvas-ready="handleCanvasReady"
+          @show-kline="handleShowKline"
           @stockReRanking="handleStockReRanking(group.id, $event)"
         />
       </el-tab-pane>
@@ -98,13 +99,18 @@ export default {
     'remove',
     'setBadge',
     'canvas-ready',
-    'stockReload'
+    'stockReload',
+    'show-kline'
   ],
   setup(props, { emit }) {
     const updateKey = ref(0)
     const tabsRef = ref(null)
     const visibleGroups = ref([])
     const hiddenGroups = ref([])
+
+    const handleShowKline = (code, name) => {
+      emit('show-kline', code, name)
+    }
 
     // 处理隐藏标签的选择
     const handleHiddenTabSelect = (groupId) => {
@@ -246,7 +252,8 @@ export default {
       hiddenGroups,
       handleHiddenTabSelect,
       handleCanvasReady,
-      handleStockReRanking
+      handleStockReRanking,
+      handleShowKline
     }
   }
 }
