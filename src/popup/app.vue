@@ -40,8 +40,8 @@ export default defineComponent({
     GroupManageDialog
   },
   setup() {
-    const stocks = ref()
-    const groups = ref()
+    const stocks = ref([])
+    const groups = ref({})
     const marketIndexes = ref([])
     const badgeStock = ref('')
     const chartData = ref({})
@@ -120,6 +120,7 @@ export default defineComponent({
       }
     }
 
+    // 更新 currentGroup 的 stock 数据
     const updateStockData = async () => {
       groups.value = groupStore.groups
 
@@ -128,18 +129,33 @@ export default defineComponent({
 
       const stockCodes = currentGroupData.stocks
       if (stockCodes.length === 0) {
+        stocks.value = [] // 确保清空数组
         return
       }
 
       try {
         const stockDataList = await stockService.fetchStockData(stockCodes)
 
-        // 更新现有股票的数据
-        stocks.value.forEach((stock) => {
-          const newData = stockDataList.find((data) => data.code === stock.code)
+        // 方法1：创建新数组替换整个 stocks.value
+        stocks.value = stockCodes.map((code) => {
+          const newData = stockDataList.find((data) => data.code === code)
+          const existingStock = stocks.value?.find((s) => s.code === code)
+
           if (newData) {
-            Object.assign(stock, newData)
+            return { ...existingStock, ...newData }
           }
+
+          return (
+            existingStock || {
+              code,
+              name: '',
+              price: 0,
+              change: 0,
+              changePercent: 0,
+              marketValue: 0,
+              amount: 0
+            }
+          )
         })
       } catch (err) {
         console.error('更新股票数据失败:', err)
@@ -174,18 +190,7 @@ export default defineComponent({
 
       delete chartData.value[code]
 
-      const currentGroupData = groupStore.getCurrentGroup()
-
-      if (currentGroupData) {
-        const index = currentGroupData.stocks.indexOf(code)
-        if (index > -1) {
-          currentGroupData.stocks.splice(index, 1)
-          await groupStore.saveStocksOrder(
-            currentGroup.value,
-            currentGroupData.stocks
-          )
-        }
-      }
+      groupStore.removeStock(code)
 
       await updateStockData()
     }
@@ -198,19 +203,6 @@ export default defineComponent({
     const handleGroupChange = async (groupId) => {
       currentGroup.value = groupId
       groupStore.currentGroupId = groupId
-
-      const currentGroupData = groupStore.getCurrentGroup()
-      if (currentGroupData) {
-        stocks.value = currentGroupData.stocks.map((code) => ({
-          code,
-          name: '',
-          price: 0,
-          change: 0,
-          changePercent: 0,
-          marketValue: 0,
-          amount: 0
-        }))
-      }
 
       await updateStockData()
       await updateChartData()

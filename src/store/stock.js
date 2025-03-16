@@ -1,5 +1,9 @@
 import { reactive } from 'vue'
-import { fetchStockData, fetchTimeSeriesData } from '@/utils/stockParser'
+import {
+  fetchStockData,
+  fetchTimeSeriesData,
+  keywordSuggestion
+} from '@/utils/stockParser'
 
 export const stockService = reactive({
   // 修改市场指数代码常量，适配东方财富的代码格式
@@ -18,6 +22,13 @@ export const stockService = reactive({
   },
   async fetchTimeSeriesData(code) {
     return await fetchTimeSeriesData(code)
+  }
+})
+
+export const sotckSuggestion = reactive({
+  stocks: [],
+  async keywordSuggestion(query) {
+    return await keywordSuggestion(query)
   }
 })
 
@@ -155,6 +166,19 @@ export const groupStore = reactive({
       console.error('保存股票顺序失败:', err)
       return false
     }
+  },
+
+  async removeStock(code) {
+    const group = this.getCurrentGroup()
+    if (group) {
+      group.stocks = group.stocks.filter((stock) => stock !== code)
+      await this.saveStocksOrder(group.id, group.stocks)
+    }
+  },
+
+  async getCurrentGroupStocks() {
+    const group = this.getCurrentGroup()
+    return group ? group.stocks : []
   },
 
   // 添加移动股票到其他分组的方法

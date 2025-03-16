@@ -97,7 +97,7 @@ async function fetchWithRetry(url, options, retries = 3) {
  * 搜索股票
  * @param {string} keyword 搜索关键词（股票代码、名称或拼音首字母）
  */
-export async function searchStock(keyword) {
+export async function keywordSuggestion(keyword) {
   try {
     // 使用东方财富的搜索建议 API
     const response = await fetch(

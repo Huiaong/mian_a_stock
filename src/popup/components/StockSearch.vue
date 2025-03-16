@@ -22,7 +22,7 @@
 
 <script>
 import { ref } from 'vue'
-import { stockService } from '@/store/stock'
+import { sotckSuggestion } from '@/store/stock'
 
 export default {
   emits: ['select'],
@@ -33,7 +33,7 @@ export default {
       if (query.length < 2) {
         return
       }
-      const results = await stockService.searchStock(query)
+      const results = await sotckSuggestion.keywordSuggestion(query)
       cb(results)
     }
 

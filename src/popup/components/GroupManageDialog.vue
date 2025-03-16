@@ -163,28 +163,12 @@ export default defineComponent({
       }
     }
 
-    const handleGroupDrop = async (event, targetGroup) => {
-      const draggedGroupId = event.dataTransfer?.getData('text/plain')
-      if (!draggedGroupId || draggedGroupId === targetGroup.id) return
-
-      const draggedIndex = localGroups.value.findIndex(
-        (g) => g.id === draggedGroupId
-      )
-      const targetIndex = localGroups.value.findIndex(
-        (g) => g.id === targetGroup.id
-      )
-
-      if (draggedIndex === -1 || targetIndex === -1) return
-
-      // 保存新的顺序到存储
-      await groupStore.saveGroupsOrder()
-    }
-
     // 添加列表拖拽事件处理
     const handleListDragStart = (event) => {
       if (!event.target.classList.contains('group-list-item')) {
         return
       }
+      source = event.target
       event.target.classList.add('dragging')
       // 存储被拖拽元素的 id
       event.dataTransfer.setData('text/plain', event.target.dataset.groupId)
@@ -192,8 +176,9 @@ export default defineComponent({
 
     const handleListDragEnter = (event) => {
       if (!source) return
-
+      console.log('source', source)
       const target = event.target?.closest('.group-list-item')
+      console.log('target', target)
       if (!target || target === source) return
 
       const list = groupListRef.value
@@ -203,8 +188,10 @@ export default defineComponent({
 
       if (sourceIndex < targetIndex) {
         target.after(source)
+        console.log('sourceIndex < targetIndex')
       } else {
         target.before(source)
+        console.log('sourceIndex >= targetIndex')
       }
     }
 
@@ -249,7 +236,6 @@ export default defineComponent({
       handleAddGroup,
       saveGroup,
       deleteGroup,
-      handleGroupDrop,
       closeDialog,
       handleListDragStart,
       handleListDragEnter,
