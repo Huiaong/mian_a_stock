@@ -38,9 +38,6 @@ export default {
     const searchKeyword = ref('')
 
     const handleSearch = async (query, cb) => {
-      if (query.length < 2) {
-        return
-      }
       const results = await sotckSuggestion.keywordSuggestion(query)
       cb(results)
     }
