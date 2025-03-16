@@ -202,11 +202,10 @@ export default defineComponent({
 
       // 获取当前分组列表的顺序
       const items = Array.from(groupListRef.value.children)
-      const newGroups = items
+      const newGroupIds = items
         .filter((item) => item.classList.contains('group-list-item'))
         .map((item) => {
-          const groupId = item.dataset.groupId
-          return localGroups.value.find((g) => g.id === groupId)
+          return item.dataset.groupId
         })
         .filter(Boolean)
 
@@ -215,16 +214,16 @@ export default defineComponent({
 
       // 如果顺序没有变化，直接返回
       if (
-        JSON.stringify(newGroups.map((g) => g.id)) ===
+        JSON.stringify(newGroupIds) ===
         JSON.stringify(localGroups.value.map((g) => g.id))
       ) {
         return
       }
 
-      console.log('New groups order:', newGroups)
+      console.log('New groups order:', newGroupIds)
 
       // 更新 groups
-      emit('update:groups', newGroups)
+      emit('update:groups', newGroupIds)
     }
 
     return {

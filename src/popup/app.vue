@@ -25,7 +25,7 @@
 
 <script>
 import { defineComponent, ref, onMounted, onBeforeUnmount } from 'vue'
-import { groupStore, badge, stockService } from '@/store/stock'
+import { groupStore, badge, stockSearch } from '@/store/stock'
 import { isTradingTime } from '@/utils/tradingTime'
 import MarketIndexComp from '@/popup/components/MarketIndexComp.vue'
 import StockSearch from '@/popup/components/StockSearch.vue'
@@ -134,7 +134,7 @@ export default defineComponent({
       }
 
       try {
-        const stockDataList = await stockService.fetchStockData(stockCodes)
+        const stockDataList = await stockSearch.fetchStockData(stockCodes)
 
         // 方法1：创建新数组替换整个 stocks.value
         stocks.value = stockCodes.map((code) => {
@@ -164,7 +164,7 @@ export default defineComponent({
 
     const updateMarketIndexes = async () => {
       try {
-        marketIndexes.value = await stockService.fetchMarketIndexes()
+        marketIndexes.value = await stockSearch.fetchMarketIndexes()
       } catch (err) {
         console.error('更新市场指数失败:', err)
       }
@@ -295,7 +295,7 @@ export default defineComponent({
 
     const fetchTimeSeries = async (code) => {
       try {
-        const chartPoints = await stockService.fetchTimeSeriesData(code)
+        const chartPoints = await stockSearch.fetchTimeSeriesData(code)
         chartData.value[code] = chartPoints
       } catch (error) {
         console.error('获取分时数据失败:', error)
@@ -303,19 +303,18 @@ export default defineComponent({
       }
     }
 
-    const handleGroupsUpdate = async (newGroups) => {
-      if (!Array.isArray(newGroups) || newGroups.length === 0) {
-        console.warn('Invalid groups data:', newGroups)
+    const handleGroupsUpdate = async (newGroupIds) => {
+      if (!Array.isArray(newGroupIds) || newGroupIds.length === 0) {
+        console.warn('Invalid groups data:', newGroupIds)
         return
       }
 
       // 更新 store
-      groupStore.groups.splice(0, groupStore.groups.length, ...newGroups)
-      await groupStore.saveGroupsOrder()
+      await groupStore.updateGroupsOrder(newGroupIds)
       // 先清空数组
       groups.value = []
       // 再设置新值
-      groups.value = newGroups
+      groups.value = groupStore.groups
     }
 
     // 动态调整更新频率

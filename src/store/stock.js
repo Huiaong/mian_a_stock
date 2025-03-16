@@ -5,7 +5,7 @@ import {
   keywordSuggestion
 } from '@/utils/stockParser'
 
-export const stockService = reactive({
+export const stockSearch = reactive({
   // 修改市场指数代码常量，适配东方财富的代码格式
   MARKET_INDEX_CODES: [
     '1.000001', // 上证指数
@@ -53,14 +53,37 @@ export const badge = reactive({
     }
   },
 
-  // 从本地存储加载
+  // 先从本地存储加载，如果本地没有，则从sync加载
   async loadFromStorage() {
     this.badgeStock = await storage.getLocal('badgeStock', '')
+    if (this.badgeStock) {
+      return
+    }
+
+    this.badgeStock = await storage.getSync('badgeStock', '')
   },
 
   // 保存到本地存储
   async saveToStorage() {
+    // 保存到本地存储
     await storage.setLocal('badgeStock', this.badgeStock)
+
+    // 加载上次同步时间
+    this.lastSyncTime = await storage.getLocal('lastBadgeSyncTime', 0)
+    // 检查上次同步时间，如果超过30秒则同步到sync
+    const now = Date.now()
+    if (now - this.lastSyncTime > 30000) {
+      // 30秒 = 30000毫秒
+      try {
+        await storage.setSync('badgeStock', this.badgeStock)
+        // 更新同步时间
+        this.lastSyncTime = now
+        await storage.setLocal('lastBadgeSyncTime', now)
+      } catch (err) {
+        console.error('同步到sync存储失败:', err)
+        // 同步失败不影响主流程，继续执行
+      }
+    }
   }
 })
 
@@ -78,10 +101,13 @@ export const groupStore = reactive({
   async initGroups() {
     try {
       // 从本地存储读取分组数据
-      this.groups = await storage.getLocal('stockGroups', this.defaultGroups)
+      this.groups = await storage.getLocal('stockGroups', [])
+      if (this.groups.length === 0) {
+        this.groups = await storage.getSync('stockGroups', this.defaultGroups)
+      }
       this.currentGroupId = this.groups[0].id
 
-      // 保存默认分组到存储
+      // 保存分组到存储
       await storage.setLocal('stockGroups', this.groups)
     } catch (err) {
       console.error('初始化分组失败:', err)
@@ -142,7 +168,11 @@ export const groupStore = reactive({
     }
   },
 
-  async saveGroupsOrder() {
+  async updateGroupsOrder(newGroupIds) {
+    this.groups = this.groups.sort((a, b) => {
+      return newGroupIds.indexOf(a.id) - newGroupIds.indexOf(b.id)
+    })
+
     try {
       await storage.setLocal('stockGroups', this.groups)
       return true
@@ -179,34 +209,6 @@ export const groupStore = reactive({
   async getCurrentGroupStocks() {
     const group = this.getCurrentGroup()
     return group ? group.stocks : []
-  },
-
-  // 添加移动股票到其他分组的方法
-  async moveStockToGroup(stockCode, fromGroupId, toGroupId) {
-    try {
-      const fromGroup = this.groups.find((g) => g.id === fromGroupId)
-      const toGroup = this.groups.find((g) => g.id === toGroupId)
-
-      if (fromGroup && toGroup) {
-        // 从原分组中移除
-        const index = fromGroup.stocks.indexOf(stockCode)
-        if (index > -1) {
-          fromGroup.stocks.splice(index, 1)
-        }
-
-        // 添加到目标分组
-        if (!toGroup.stocks.includes(stockCode)) {
-          toGroup.stocks.push(stockCode)
-        }
-
-        await storage.setLocal('stockGroups', this.groups)
-        return true
-      }
-      return false
-    } catch (err) {
-      console.error('移动股票失败:', err)
-      return false
-    }
   }
 })
 
