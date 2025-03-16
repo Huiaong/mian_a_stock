@@ -26,61 +26,110 @@
           :key="group.id"
           class="group-list-item"
           :data-group-id="group.id"
-          draggable="true"
+          :draggable="!isEditing(group.id)"
         >
-          <div class="group-drag-handle">
-            <el-icon><Operation /></el-icon>
-          </div>
-          <span class="group-name">{{ group.name }}</span>
-          <div class="group-actions">
-            <el-icon class="edit-icon" @click="startEditGroup(group)"
-              ><Edit
-            /></el-icon>
-            <el-icon class="delete-icon" @click="deleteGroup(group)">
-              <Delete />
-            </el-icon>
-          </div>
+          <!-- 编辑状态 -->
+          <template v-if="isEditing(group.id)">
+            <el-input
+              v-model="editGroupName"
+              placeholder="请输入分组名称"
+              size="small"
+              class="edit-input"
+              ref="editInputRef"
+              @keyup.enter="saveGroup(group.id)"
+              @blur="cancelEdit"
+            >
+              <template #suffix>
+                <el-button
+                  type="primary"
+                  link
+                  @click="saveGroup(group.id)"
+                  :disabled="!editGroupName.trim()"
+                >
+                  <el-icon><Check /></el-icon>
+                </el-button>
+                <el-button type="info" link @click="cancelEdit">
+                  <el-icon><Close /></el-icon>
+                </el-button>
+              </template>
+            </el-input>
+          </template>
+
+          <!-- 非编辑状态 -->
+          <template v-else>
+            <div class="group-drag-handle">
+              <el-icon><Operation /></el-icon>
+            </div>
+            <span class="group-name">{{ group.name }}</span>
+            <div class="group-actions">
+              <el-icon class="edit-icon" @click="startEditGroup(group)"
+                ><Edit
+              /></el-icon>
+              <el-icon class="delete-icon" @click="deleteGroup(group)">
+                <Delete />
+              </el-icon>
+            </div>
+          </template>
         </div>
       </div>
-      <div class="add-group-btn" @click="handleAddGroup">
+
+      <!-- 添加新分组 -->
+      <div v-if="isAddingNew" class="group-list-item new-group-item">
+        <el-input
+          v-model="newGroupName"
+          placeholder="请输入分组名称"
+          size="small"
+          class="edit-input"
+          ref="newGroupInputRef"
+          @keyup.enter="saveNewGroup"
+          @blur="cancelNewGroup"
+        >
+          <template #suffix>
+            <el-button
+              type="primary"
+              link
+              @click="saveNewGroup"
+              :disabled="!newGroupName.trim()"
+            >
+              <el-icon><Check /></el-icon>
+            </el-button>
+            <el-button type="info" link @click="cancelNewGroup">
+              <el-icon><Close /></el-icon>
+            </el-button>
+          </template>
+        </el-input>
+      </div>
+
+      <!-- 添加分组按钮 -->
+      <div v-if="!isAddingNew" class="add-group-btn" @click="startAddNewGroup">
         <el-icon><Plus /></el-icon>
         <span>新建分组</span>
       </div>
     </div>
-
-    <!-- 编辑分组对话框 -->
-    <el-dialog
-      v-model="showEditDialog"
-      :title="editingGroup ? '编辑分组' : '新建分组'"
-      width="300px"
-      append-to-body
-    >
-      <el-input
-        v-model="editGroupName"
-        placeholder="请输入分组名称"
-        @keyup.enter="saveGroup"
-      />
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="showEditDialog = false">取消</el-button>
-          <el-button type="primary" @click="saveGroup">确定</el-button>
-        </span>
-      </template>
-    </el-dialog>
   </el-dialog>
 </template>
 
 <script>
-import { defineComponent, ref, watch } from 'vue'
-import { Operation, Edit, Delete, Plus } from '@element-plus/icons-vue'
+import { defineComponent, ref, watch, nextTick } from 'vue'
+import {
+  Operation,
+  Edit,
+  Delete,
+  Plus,
+  Check,
+  Close
+} from '@element-plus/icons-vue'
 import { groupStore } from '@/store/stock'
+import { ElMessageBox, ElMessage } from 'element-plus'
 
 export default defineComponent({
   components: {
     Operation,
     Edit,
     Delete,
-    Plus
+    Plus,
+    Check,
+    Close
   },
   props: {
     modelValue: {
@@ -94,11 +143,13 @@ export default defineComponent({
   },
   emits: ['update:modelValue', 'update:groups'],
   setup(props, { emit }) {
-    const showEditDialog = ref(false)
+    const editingGroupId = ref(null)
     const editGroupName = ref('')
-    const editingGroup = ref(null)
-    const draggingGroupId = ref(null)
+    const isAddingNew = ref(false)
+    const newGroupName = ref('')
     const groupListRef = ref(null)
+    const editInputRef = ref(null)
+    const newGroupInputRef = ref(null)
     let source = null
     const visible = ref(props.modelValue)
     const localGroups = ref([])
@@ -111,6 +162,9 @@ export default defineComponent({
         if (val) {
           // 打开对话框时，复制一份组数据用于编辑
           localGroups.value = JSON.parse(JSON.stringify(props.groups))
+          // 重置编辑状态
+          editingGroupId.value = null
+          isAddingNew.value = false
         }
       }
     )
@@ -124,42 +178,104 @@ export default defineComponent({
       visible.value = false
     }
 
+    const isEditing = (groupId) => {
+      return editingGroupId.value === groupId
+    }
+
     const startEditGroup = (group) => {
-      editingGroup.value = group
+      editingGroupId.value = group.id
       editGroupName.value = group.name
-      showEditDialog.value = true
+
+      // 在下一个 tick 聚焦输入框
+      nextTick(() => {
+        if (editInputRef.value) {
+          editInputRef.value.focus()
+        }
+      })
     }
 
-    const handleAddGroup = () => {
-      editingGroup.value = null
+    const cancelEdit = () => {
+      editingGroupId.value = null
       editGroupName.value = ''
-      showEditDialog.value = true
     }
 
-    const saveGroup = async () => {
-      if (!editGroupName.value.trim()) return
+    const startAddNewGroup = () => {
+      isAddingNew.value = true
+      newGroupName.value = ''
 
-      const success = await groupStore.saveGroup(
-        editGroupName.value,
-        editingGroup.value?.id
-      )
+      // 在下一个 tick 聚焦输入框
+      nextTick(() => {
+        if (newGroupInputRef.value) {
+          newGroupInputRef.value.focus()
+        }
+      })
+    }
+
+    const cancelNewGroup = () => {
+      isAddingNew.value = false
+      newGroupName.value = ''
+    }
+
+    const saveGroup = async (groupId) => {
+      if (!editGroupName.value.trim()) {
+        return
+      }
+
+      const success = await groupStore.saveGroup(editGroupName.value, groupId)
 
       if (success) {
-        showEditDialog.value = false
+        editingGroupId.value = null
         editGroupName.value = ''
-        editingGroup.value = null
+      }
+    }
+
+    const saveNewGroup = async () => {
+      if (!newGroupName.value.trim()) {
+        return
+      }
+
+      const success = await groupStore.saveGroup(newGroupName.value)
+
+      if (success) {
+        isAddingNew.value = false
+        newGroupName.value = ''
       }
     }
 
     const deleteGroup = async (group) => {
-      if (confirm('确定要删除该分组吗？分组内的股票也会被删除。')) {
-        await groupStore.deleteGroup(group.id)
+      // 检查是否是最后一个分组
+      if (props.groups.length <= 1) {
+        ElMessage({
+          message: '请保留最少一个分组',
+          type: 'warning',
+          duration: 2000
+        })
+        return
       }
+
+      ElMessageBox.confirm(
+        '确定要删除该分组吗？分组内的股票也会被删除。',
+        '删除分组',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      )
+        .then(async () => {
+          await groupStore.deleteGroup(group.id)
+        })
+        .catch(() => {
+          // 用户取消删除，不做任何操作
+        })
     }
 
     // 添加列表拖拽事件处理
     const handleListDragStart = (event) => {
-      if (!event.target.classList.contains('group-list-item')) {
+      if (
+        !event.target.classList.contains('group-list-item') ||
+        editingGroupId.value
+      ) {
         return
       }
       source = event.target
@@ -217,19 +333,25 @@ export default defineComponent({
     }
 
     return {
-      showEditDialog,
+      editingGroupId,
       editGroupName,
-      editingGroup,
-      draggingGroupId,
+      isAddingNew,
+      newGroupName,
+      isEditing,
       startEditGroup,
-      handleAddGroup,
+      cancelEdit,
       saveGroup,
+      startAddNewGroup,
+      cancelNewGroup,
+      saveNewGroup,
       deleteGroup,
       closeDialog,
       handleListDragStart,
       handleListDragEnter,
       handleListDragEnd,
       groupListRef,
+      editInputRef,
+      newGroupInputRef,
       visible,
       localGroups
     }
@@ -249,7 +371,6 @@ export default defineComponent({
       background: #f5f5f5;
       border-radius: 4px;
       margin-bottom: 8px;
-      cursor: move;
       transition: all 0.2s;
 
       &.dragging {
@@ -295,6 +416,14 @@ export default defineComponent({
           color: #f56c6c;
         }
       }
+
+      .edit-input {
+        flex: 1;
+      }
+    }
+
+    .new-group-item {
+      cursor: default;
     }
   }
 

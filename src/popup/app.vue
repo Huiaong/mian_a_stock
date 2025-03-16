@@ -1,6 +1,6 @@
 <template>
   <div class="popup_page">
-    <market-index-comp :market-indexes="marketIndexes" />
+    <market-index :market-indexes="marketIndexes" />
     <div class="divider"></div>
     <stock-search @select="selectSearchResult" />
     <group-tabs
@@ -28,14 +28,14 @@
 import { defineComponent, ref, onMounted, onBeforeUnmount } from 'vue'
 import { groupStore, badge, stockSearch, syncManager } from '@/store/stock'
 import { isTradingTime } from '@/utils/tradingTime'
-import MarketIndexComp from '@/popup/components/MarketIndexComp.vue'
+import MarketIndex from '@/popup/components/MarketIndex.vue'
 import StockSearch from '@/popup/components/StockSearch.vue'
 import GroupTabs from '@/popup/components/GroupTabs.vue'
 import GroupManageDialog from '@/popup/components/GroupManageDialog.vue'
 
 export default defineComponent({
   components: {
-    MarketIndexComp,
+    MarketIndex,
     StockSearch,
     GroupTabs,
     GroupManageDialog
