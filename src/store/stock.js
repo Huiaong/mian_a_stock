@@ -35,6 +35,7 @@ export const sotckSuggestion = reactive({
 export const badge = reactive({
   badgeStock: '',
   isDirty: false,
+  lastSyncTime: 0,
 
   // 新增：设置要显示在图标上的股票
   async setBadgeStock(code) {
@@ -114,9 +115,35 @@ export const groupStore = reactive({
     try {
       // 从本地存储读取分组数据
       this.groups = await storage.getLocal('stockGroups', [])
+
+      // 如果本地没有分组数据，尝试从sync读取
       if (this.groups.length === 0) {
-        this.groups = await storage.getSync('stockGroups', this.defaultGroups)
+        this.groups = await storage.getSync('stockGroups', [])
       }
+
+      // 如果仍然没有分组数据，尝试从旧版本数据迁移
+      if (this.groups.length === 0) {
+        const migratedStocks = await this.migrateFromV1_0()
+
+        // 如果迁移成功，创建默认分组并添加迁移的股票
+        if (migratedStocks && migratedStocks.length > 0) {
+          this.groups = [
+            {
+              id: 'default',
+              name: '今日必涨',
+              stocks: migratedStocks
+            }
+          ]
+
+          // 删除旧数据
+          await storage.removeLocal('stockList')
+          await storage.removeSync('stockList')
+        } else {
+          // 如果没有迁移到数据，使用默认分组
+          this.groups = this.defaultGroups
+        }
+      }
+
       this.currentGroupId = this.groups[0].id
 
       // 保存分组到存储
@@ -126,6 +153,39 @@ export const groupStore = reactive({
       this.groups = this.defaultGroups
       this.currentGroupId = 'default'
     }
+  },
+
+  // 从旧版本数据迁移，返回股票代码数组
+  async migrateFromV1_0() {
+    try {
+      // 尝试读取旧版本的 stockList 数据
+      const oldStockList = await storage.getLocal('stockList', null)
+
+      if (!oldStockList) {
+        // 尝试从 sync 读取旧数据
+        const oldSyncStockList = await storage.getSync('stockList', null)
+        if (!oldSyncStockList) {
+          return null // 没有旧数据
+        }
+
+        return this.convertV1_0StockList(oldSyncStockList)
+      }
+
+      return this.convertV1_0StockList(oldStockList)
+    } catch (err) {
+      console.error('从旧版本迁移数据失败:', err)
+      return []
+    }
+  },
+
+  // 转换旧版本的 stockList 对象到股票代码数组
+  convertV1_0StockList(oldStockList) {
+    if (typeof oldStockList === 'object' && !Array.isArray(oldStockList)) {
+      const stockCodes = Object.values(oldStockList)
+      return stockCodes.length > 0 ? stockCodes : []
+    }
+
+    return []
   },
 
   // 添加通用的保存到存储方法
@@ -271,6 +331,15 @@ const storage = {
     }
   },
 
+  async removeSync(key) {
+    try {
+      await chrome.storage.sync.remove(key)
+    } catch (err) {
+      console.error('同步存储删除失败:', err)
+      throw err
+    }
+  },
+
   async setLocal(key, value) {
     try {
       const serializedValue = JSON.stringify(value)
@@ -326,8 +395,6 @@ export const syncManager = {
       // 同步徽章数据
       await storage.setSync('badgeStock', badge.badgeStock)
       await storage.setLocal('lastBadgeSyncTime', Date.now())
-
-      console.log('数据已强制同步到 sync 存储')
     } catch (err) {
       console.error('强制同步数据失败:', err)
     }

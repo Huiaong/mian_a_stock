@@ -170,9 +170,9 @@ export default defineComponent({
 
     const handleListDragEnter = (event) => {
       if (!source) return
-      console.log('source', source)
+
       const target = event.target?.closest('.group-list-item')
-      console.log('target', target)
+
       if (!target || target === source) return
 
       const list = groupListRef.value
@@ -182,10 +182,8 @@ export default defineComponent({
 
       if (sourceIndex < targetIndex) {
         target.after(source)
-        console.log('sourceIndex < targetIndex')
       } else {
         target.before(source)
-        console.log('sourceIndex >= targetIndex')
       }
     }
 
@@ -213,8 +211,6 @@ export default defineComponent({
       ) {
         return
       }
-
-      console.log('New groups order:', newGroupIds)
 
       // 更新 groups
       emit('update:groups', newGroupIds)

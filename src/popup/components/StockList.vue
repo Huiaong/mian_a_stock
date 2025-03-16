@@ -26,7 +26,7 @@
         />
       </transition-group>
     </div>
-    <!-- 添加调试信息 -->
+    <!-- 空状态提示 -->
     <div v-if="stocks.length === 0" class="empty-state">
       <p>暂无股票，请搜索添加</p>
     </div>
@@ -34,7 +34,7 @@
 </template>
 
 <script>
-import { ref, watch, onMounted } from 'vue'
+import { ref } from 'vue'
 import StockItem from './StockItem.vue'
 
 export default {
@@ -59,19 +59,6 @@ export default {
   setup(props, { emit }) {
     const stockListRef = ref(null)
     let source = null
-
-    // 添加调试日志
-    onMounted(() => {
-      console.log('StockList mounted, stocks:', props.stocks)
-    })
-
-    watch(
-      () => props.stocks,
-      (newStocks) => {
-        console.log('StockList stocks changed:', newStocks)
-      },
-      { deep: true }
-    )
 
     // 添加列表拖拽事件处理
     const handleListDragStart = (event) => {
