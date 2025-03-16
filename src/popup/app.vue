@@ -404,4 +404,12 @@ export default defineComponent({
   margin: 0 0 12px 0;
   flex-shrink: 0;
 }
+
+/* 确保分组标签页占据剩余空间 */
+.group-tabs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* 关键属性 */
+}
 </style>

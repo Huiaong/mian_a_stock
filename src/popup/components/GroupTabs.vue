@@ -334,4 +334,17 @@ export default {
     font-weight: bold;
   }
 }
+
+/* 确保标签页内容区域占据剩余空间 */
+:deep(.el-tabs__content) {
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+}
+
+:deep(.el-tab-pane) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
 </style>

@@ -132,8 +132,6 @@ export default {
   background: #fff;
   border-radius: 4px;
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
   margin-bottom: 12px;
   position: relative;
 
@@ -183,19 +181,6 @@ export default {
         opacity 0.2s ease,
         transform 0.2s ease,
         box-shadow 0.2s ease;
-    }
-  }
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: #e8e8e8;
-    border-radius: 3px;
-
-    &:hover {
-      background-color: #d9d9d9;
     }
   }
 }
