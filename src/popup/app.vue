@@ -384,6 +384,27 @@ export default defineComponent({
 })
 </script>
 
+<style>
+/* 全局样式：移除所有按钮的 focus-visible 样式 */
+.el-button:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.el-tabs__item:focus-visible {
+  outline: none !important;
+}
+
+.el-dropdown-menu__item:focus-visible {
+  outline: none !important;
+}
+
+.el-input__inner:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+</style>
+
 <style lang="less" scoped>
 .popup_page {
   width: 360px;
