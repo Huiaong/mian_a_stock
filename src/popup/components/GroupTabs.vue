@@ -129,7 +129,7 @@ export default {
       const tabsNav = tabsRef.value.$el.querySelector('.el-tabs__nav')
       if (!tabsNav) return
 
-      const extraWidth = 80 // 右侧按钮区域宽度
+      const extraWidth = 83 // 右侧按钮区域宽度
 
       // 如果导航栏总宽度小于容器宽度，显示所有分组
       if (tabsNav.scrollWidth <= tabsHeader.clientWidth - extraWidth) {
@@ -139,7 +139,7 @@ export default {
       }
 
       const availableWidth = tabsHeader.clientWidth - extraWidth
-      const tabs = Array.from(tabsNav.children || [])
+      const tabs = Array.from(tabsNav.querySelectorAll('.el-tabs__item') || [])
       let currentWidth = 0
       const visible = []
       const hidden = []
@@ -148,9 +148,11 @@ export default {
       for (let i = 0; i < props.groups.length; i++) {
         const group = props.groups[i]
         const tab = tabs[i]
-
+        const numLength = (group.stocks.length % 10) + 1
         // 如果没有对应的 DOM 元素，使用估算宽度
-        const tabWidth = tab ? tab.offsetWidth : group.name.length * 14 + 40
+        const tabWidth = tab
+          ? tab.offsetWidth
+          : group.name.length * 14 + numLength * 8 + 32.886
 
         if (currentWidth + tabWidth < availableWidth) {
           visible.push(group)
@@ -166,7 +168,12 @@ export default {
 
     // 处理窗口大小变化
     const handleResize = () => {
-      updateVisibleGroups()
+      nextTick(() => {
+        setTimeout(() => {
+          updateVisibleGroups()
+          scrollToActiveTab()
+        }, 100) // 给予一定延迟确保 DOM 已更新
+      })
     }
 
     // 监听分组变化时延迟更新可见性

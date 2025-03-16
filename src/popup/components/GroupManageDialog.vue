@@ -38,6 +38,8 @@
               ref="editInputRef"
               @keyup.enter="saveGroup(group.id)"
               @blur="cancelEdit"
+              maxlength="6"
+              show-word-limit
             >
               <template #suffix>
                 <el-button
@@ -83,6 +85,8 @@
           ref="newGroupInputRef"
           @keyup.enter="saveNewGroup"
           @blur="cancelNewGroup"
+          maxlength="6"
+          show-word-limit
         >
           <template #suffix>
             <el-button
