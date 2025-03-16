@@ -14,6 +14,7 @@
       @remove="removeStock"
       @setBadge="setBadgeStock"
       @canvas-ready="handleCanvasReady"
+      @stockReload="updateStockData"
     />
     <group-manage-dialog
       v-model="showGroupDialog"
@@ -376,7 +377,8 @@ export default defineComponent({
       currentGroup,
       chartData,
       handleGroupsUpdate,
-      handleGroupChange
+      handleGroupChange,
+      updateStockData
     }
   }
 })

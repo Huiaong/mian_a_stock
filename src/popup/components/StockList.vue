@@ -6,17 +6,20 @@
     @dragover="handleListDragEnter"
     @dragend="handleListDragEnd"
   >
-    <stock-item
-      v-for="stock in stocks"
-      :key="stock.code"
-      :stock="stock"
-      :data-code="stock.code"
-      :is-pinned="stock.code === badgeStock"
-      :chart-data="chartData[stock.code]"
-      @remove="$emit('remove', stock.code)"
-      @pin="$emit('setBadge', stock.code === badgeStock ? '' : stock.code)"
-      @canvas-ready="handleCanvasReady"
-    />
+    <transition-group name="stock-list" tag="div" class="stock-items-container">
+      <stock-item
+        v-for="stock in stocks"
+        :key="stock.code"
+        :stock="stock"
+        :data-code="stock.code"
+        :is-pinned="stock.code === badgeStock"
+        :chart-data="chartData[stock.code]"
+        @remove="$emit('remove', stock.code)"
+        @pin="$emit('setBadge', stock.code === badgeStock ? '' : stock.code)"
+        @canvas-ready="handleCanvasReady"
+        class="stock-item"
+      />
+    </transition-group>
   </div>
 </template>
 
@@ -65,7 +68,9 @@ export default {
       if (!target || target === source) return
 
       const list = stockListRef.value
-      const children = Array.from(list.children)
+      const children = Array.from(
+        list.querySelector('.stock-items-container').children
+      )
       const sourceIndex = children.indexOf(source)
       const targetIndex = children.indexOf(target)
 
@@ -82,7 +87,9 @@ export default {
       event.target.classList.remove('dragging')
 
       // 获取当前分组列表的顺序
-      const items = Array.from(stockListRef.value.children)
+      const items = Array.from(
+        stockListRef.value.querySelector('.stock-items-container').children
+      )
       const newStocks = items
         .filter((item) => item.classList.contains('stock-item'))
         .map((item) => {
@@ -130,10 +137,52 @@ export default {
   margin-bottom: 12px;
   position: relative;
 
+  .stock-items-container {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* 优化过渡效果 */
+  .stock-list-move {
+    transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .stock-list-enter-active {
+    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+    position: relative;
+    z-index: 1;
+  }
+
+  .stock-list-leave-active {
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    position: absolute;
+    width: 100%;
+    z-index: 0;
+  }
+
+  .stock-list-enter-from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  .stock-list-leave-to {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
   .stock-item {
     &.dragging {
       color: transparent;
-      background: #ccc;
+      background: #f0f0f0;
+      opacity: 0.7;
+      z-index: 10;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transform: scale(1.02);
+      transition:
+        background 0.2s ease,
+        opacity 0.2s ease,
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
     }
   }
 

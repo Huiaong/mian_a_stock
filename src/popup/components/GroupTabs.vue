@@ -92,7 +92,14 @@ export default {
       required: true
     }
   },
-  emits: ['groupChange', 'showManage', 'remove', 'setBadge', 'canvas-ready'],
+  emits: [
+    'groupChange',
+    'showManage',
+    'remove',
+    'setBadge',
+    'canvas-ready',
+    'stockReload'
+  ],
   setup(props, { emit }) {
     const updateKey = ref(0)
     const tabsRef = ref(null)
@@ -208,8 +215,12 @@ export default {
       }
     }
 
-    const handleStockReRanking = (groupId, sotcks) => {
-      groupStore.saveStocksOrder(groupId, sotcks)
+    const handleStockReRanking = async (groupId, stockCodes) => {
+      // 保存到 groupStore
+      await groupStore.saveStocksOrder(groupId, stockCodes)
+
+      // 通知父组件需要更新股票数据
+      emit('stockReload')
     }
 
     onMounted(() => {
