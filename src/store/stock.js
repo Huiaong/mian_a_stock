@@ -159,11 +159,11 @@ export const groupStore = reactive({
   async migrateFromV1_0() {
     try {
       // 尝试读取旧版本的 stockList 数据
-      const oldStockList = await chrome.storage.local.get(['stockList']) // await storage.getLocal('stockList', null)
+      const oldStockList = await chrome.storage.local.get(['stockList'])
 
       if (!oldStockList) {
         // 尝试从 sync 读取旧数据
-        const oldSyncStockList = await storage.getSync(['stockList'])
+        const oldSyncStockList = await chrome.storage.local.get(['stockList'])
         if (!oldSyncStockList) {
           return [] // 没有旧数据
         }
