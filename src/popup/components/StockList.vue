@@ -1,30 +1,40 @@
 <template>
   <div
-    class="stock-list"
+    class="stock-list-container"
     ref="stockListRef"
     @dragstart="handleListDragStart"
     @dragover="handleListDragEnter"
     @dragend="handleListDragEnd"
   >
-    <transition-group name="stock-list" tag="div" class="stock-items-container">
-      <stock-item
-        v-for="stock in stocks"
-        :key="stock.code"
-        :stock="stock"
-        :data-code="stock.code"
-        :is-pinned="stock.code === badgeStock"
-        :chart-data="chartData[stock.code]"
-        @remove="$emit('remove', stock.code)"
-        @pin="$emit('setBadge', stock.code === badgeStock ? '' : stock.code)"
-        @canvas-ready="handleCanvasReady"
-        class="stock-item"
-      />
-    </transition-group>
+    <div class="stock-list">
+      <transition-group
+        name="stock-list"
+        tag="div"
+        class="stock-items-container"
+      >
+        <stock-item
+          v-for="stock in stocks"
+          :key="stock.code"
+          :stock="stock"
+          :data-code="stock.code"
+          :is-pinned="stock.code === badgeStock"
+          :chart-data="chartData[stock.code]"
+          @remove="$emit('remove', stock.code)"
+          @pin="$emit('setBadge', stock.code === badgeStock ? '' : stock.code)"
+          @canvas-ready="handleCanvasReady"
+          class="stock-item"
+        />
+      </transition-group>
+    </div>
+    <!-- 添加调试信息 -->
+    <div v-if="stocks.length === 0" class="empty-state">
+      <p>暂无股票，请搜索添加</p>
+    </div>
   </div>
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import StockItem from './StockItem.vue'
 
 export default {
@@ -50,6 +60,19 @@ export default {
     const stockListRef = ref(null)
     let source = null
 
+    // 添加调试日志
+    onMounted(() => {
+      console.log('StockList mounted, stocks:', props.stocks)
+    })
+
+    watch(
+      () => props.stocks,
+      (newStocks) => {
+        console.log('StockList stocks changed:', newStocks)
+      },
+      { deep: true }
+    )
+
     // 添加列表拖拽事件处理
     const handleListDragStart = (event) => {
       if (!event.target.classList.contains('stock-item')) {
@@ -58,7 +81,7 @@ export default {
       source = event.target
       event.target.classList.add('dragging')
       // 存储被拖拽元素的 id
-      event.dataTransfer.setData('text/plain', event.target.dataset.groupId)
+      event.dataTransfer.setData('text/plain', event.target.dataset.code)
     }
 
     const handleListDragEnter = (event) => {
@@ -90,18 +113,14 @@ export default {
       const items = Array.from(
         stockListRef.value.querySelector('.stock-items-container').children
       )
-      const newStocks = items
+      const newStocksCodes = items
         .filter((item) => item.classList.contains('stock-item'))
-        .map((item) => {
-          const code = item.dataset.code
-          return props.stocks.find((s) => s.code === code)
-        })
+        .map((item) => item.dataset.code)
         .filter(Boolean)
 
       // 重置 source
       source = null
 
-      const newStocksCodes = newStocks.map((s) => s.code)
       const oldStocksCodes = props.stocks.map((s) => s.code)
 
       // 如果顺序没有变化，直接返回
@@ -128,60 +147,97 @@ export default {
 </script>
 
 <style lang="less" scoped>
+.stock-list-container {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  min-height: 0;
+}
+
 .stock-list {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: #fff;
   border-radius: 4px;
-  flex: 1;
-  margin-bottom: 12px;
+  z-index: 1;
+
+  /* 隐藏滚动条但保留滚动功能 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+
+  &::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+}
+
+.stock-items-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding-bottom: 20px; /* 添加底部内边距，确保最后一个元素可见 */
+}
+
+/* 优化过渡效果 */
+.stock-list-move {
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.stock-list-enter-active {
+  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
   position: relative;
+  z-index: 1;
+}
 
-  .stock-items-container {
-    display: flex;
-    flex-direction: column;
-  }
+.stock-list-leave-active {
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  position: absolute;
+  width: 100%;
+  z-index: 0;
+}
 
-  /* 优化过渡效果 */
-  .stock-list-move {
-    transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
+.stock-list-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
 
-  .stock-list-enter-active {
-    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-    position: relative;
-    z-index: 1;
-  }
+.stock-list-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
 
-  .stock-list-leave-active {
-    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-    position: absolute;
-    width: 100%;
-    z-index: 0;
+.stock-item {
+  &.dragging {
+    color: transparent;
+    background: #f0f0f0;
+    opacity: 0.7;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: scale(1.02);
+    transition:
+      background 0.2s ease,
+      opacity 0.2s ease,
+      transform 0.2s ease,
+      box-shadow 0.2s ease;
   }
+}
 
-  .stock-list-enter-from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-
-  .stock-list-leave-to {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-
-  .stock-item {
-    &.dragging {
-      color: transparent;
-      background: #f0f0f0;
-      opacity: 0.7;
-      z-index: 10;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      transform: scale(1.02);
-      transition:
-        background 0.2s ease,
-        opacity 0.2s ease,
-        transform 0.2s ease,
-        box-shadow 0.2s ease;
-    }
-  }
+/* 添加空状态样式 */
+.empty-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: #909399;
+  font-size: 14px;
+  z-index: 2;
 }
 </style>

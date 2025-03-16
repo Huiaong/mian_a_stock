@@ -388,7 +388,6 @@ export default defineComponent({
 .popup_page {
   width: 360px;
   height: 500px;
-  padding: 12px;
   font-family:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
     Arial, sans-serif;

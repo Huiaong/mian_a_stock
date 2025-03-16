@@ -248,83 +248,53 @@ export default {
 <style lang="less" scoped>
 .group-header {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   margin-bottom: 12px;
   position: relative;
+  flex: 1;
+  overflow: hidden;
+}
 
-  .group-tabs {
-    flex: 1;
-    overflow: hidden;
+.group-tabs {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
 
-    :deep(.el-tabs__header) {
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
+.tabs-extra {
+  position: absolute;
+  right: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  height: 32px;
+  background: #fff;
+  z-index: 10;
 
-      .el-tabs__nav-wrap {
-        flex: 1;
-        margin-right: 0;
-        padding-right: 0;
+  .more-tabs-btn {
+    font-size: 16px;
+    padding: 8px;
+    height: 32px;
 
-        &::after {
-          height: 1px;
-        }
-      }
-
-      .el-tabs__nav-scroll {
-        overflow-x: auto;
-        margin-right: 0;
-        padding-right: 0;
-
-        &::-webkit-scrollbar {
-          display: none;
-        }
-        scrollbar-width: none;
-      }
-
-      .el-tabs__nav {
-        white-space: nowrap;
-        float: none;
-
-        .el-tabs__item {
-          padding: 0 10px;
-        }
-      }
+    &:hover {
+      color: var(--el-color-primary);
     }
   }
 
-  .tabs-extra {
-    position: absolute;
-    right: 0;
-    top: 0;
-    display: flex;
-    align-items: center;
+  .divider {
+    width: 1px;
+    height: 16px;
+    background: #dcdfe6;
+    margin: 0 8px;
+  }
+
+  .add-group-btn {
+    z-index: 99;
+    font-size: 16px;
+    padding: 8px;
     height: 32px;
-    background: #fff;
-
-    .more-tabs-btn {
-      font-size: 16px;
-      padding: 8px;
-      height: 32px;
-
-      &:hover {
-        color: var(--el-color-primary);
-      }
-    }
-
-    .divider {
-      width: 1px;
-      height: 16px;
-      background: #dcdfe6;
-      margin: 0 8px;
-    }
-
-    .add-group-btn {
-      z-index: 99;
-      font-size: 16px;
-      padding: 8px;
-      height: 32px;
-    }
   }
 }
 
@@ -340,11 +310,50 @@ export default {
   flex: 1;
   overflow: hidden;
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 :deep(.el-tab-pane) {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+/* 修复标签头部位置 */
+:deep(.el-tabs__header) {
+  margin-bottom: 12px;
+  order: -1; /* 确保标签头部在内容之前 */
+
+  .el-tabs__nav-wrap {
+    flex: 1;
+    margin-right: 0;
+    padding-right: 0;
+
+    &::after {
+      height: 1px;
+    }
+  }
+
+  .el-tabs__nav-scroll {
+    overflow-x: auto;
+    margin-right: 0;
+    padding-right: 0;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+    scrollbar-width: none;
+  }
+
+  .el-tabs__nav {
+    white-space: nowrap;
+    float: none;
+
+    .el-tabs__item {
+      padding: 0 10px;
+    }
+  }
 }
 </style>
