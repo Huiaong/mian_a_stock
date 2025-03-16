@@ -159,13 +159,13 @@ export const groupStore = reactive({
   async migrateFromV1_0() {
     try {
       // 尝试读取旧版本的 stockList 数据
-      const oldStockList = await storage.getLocal('stockList', null)
+      const oldStockList = await chrome.storage.local.get(['stockList']) // await storage.getLocal('stockList', null)
 
       if (!oldStockList) {
         // 尝试从 sync 读取旧数据
-        const oldSyncStockList = await storage.getSync('stockList', null)
+        const oldSyncStockList = await storage.getSync(['stockList'])
         if (!oldSyncStockList) {
-          return null // 没有旧数据
+          return [] // 没有旧数据
         }
 
         return this.convertV1_0StockList(oldSyncStockList)
@@ -180,12 +180,8 @@ export const groupStore = reactive({
 
   // 转换旧版本的 stockList 对象到股票代码数组
   convertV1_0StockList(oldStockList) {
-    if (typeof oldStockList === 'object' && !Array.isArray(oldStockList)) {
-      const stockCodes = Object.values(oldStockList)
-      return stockCodes.length > 0 ? stockCodes : []
-    }
-
-    return []
+    const stockCodes = Object.values(oldStockList.stockList)
+    return stockCodes.length > 0 ? stockCodes : []
   },
 
   // 添加通用的保存到存储方法
