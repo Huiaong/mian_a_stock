@@ -75,7 +75,7 @@ export const stockSearch = reactive({
       if (data.data && data.data.klines) {
         // 解析K线数据
         return data.data.klines.map((item) => {
-          const [date, open, close, high, low, volume, amount, ...rest] = item.split(',')
+          const [date, open, close, high, low, volume, amount] = item.split(',')
           return {
             date,
             open: parseFloat(open),

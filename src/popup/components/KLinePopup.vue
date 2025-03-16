@@ -1,5 +1,5 @@
 <template>
-  <div class="kline-dialog-container">
+  <div class="kline-popup-container">
     <div class="kline-header">
       <div class="stock-info">
         <div class="stock-basic-info">
@@ -99,9 +99,6 @@ export default {
             changePercent.value = (priceChange.value / prevDay.close) * 100
           }
         }
-
-        // 加载股票详细信息（包括板块信息）
-        // loadStockDetail()
       } catch (error) {
         console.error('加载K线数据失败:', error)
       } finally {
@@ -171,7 +168,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-.kline-dialog-container {
+.kline-popup-container {
   width: 100%;
   height: 100%;
   display: flex;
