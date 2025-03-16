@@ -9,10 +9,13 @@
         class="search-input"
         @select="handleSelect"
       >
-        <template #default="scope">
-          <div class="search-suggestion" v-if="scope && scope.item">
-            <span class="stock-code">{{ scope.item.code }}</span>
-            <span class="stock-name">{{ scope.item.name }}</span>
+        <template #suffix>
+          <el-icon><Search /></el-icon>
+        </template>
+        <template #default="{ item }">
+          <div class="search-suggestion" v-if="item">
+            <span class="stock-name">{{ item.name }}</span>
+            <span class="stock-code">{{ item.code }}</span>
           </div>
         </template>
       </el-autocomplete>
@@ -23,8 +26,13 @@
 <script>
 import { ref } from 'vue'
 import { sotckSuggestion } from '@/store/stock'
+import { Search } from '@element-plus/icons-vue'
 
 export default {
+  name: 'StockSearch',
+  components: {
+    Search
+  },
   emits: ['select'],
   setup(props, { emit }) {
     const searchKeyword = ref('')
@@ -51,10 +59,33 @@ export default {
 }
 </script>
 
+<style>
+/* 全局样式，不使用 scoped */
+.el-popper.el-autocomplete__popper .search-suggestion {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.el-popper.el-autocomplete__popper .search-suggestion .stock-code {
+  width: 80px;
+  color: #999;
+  font-size: 13px;
+}
+
+.el-popper.el-autocomplete__popper .search-suggestion .stock-name {
+  flex: 1;
+  color: #333;
+  font-weight: 500;
+  margin-right: 12px;
+}
+</style>
+
 <style lang="less" scoped>
 .header {
   margin-bottom: 12px;
   flex-shrink: 0;
+  width: 100%;
 
   .input-group {
     display: flex;
@@ -62,22 +93,17 @@ export default {
     width: 100%;
   }
 
-  .search-input {
+  :deep(.search-input) {
     width: 100%;
-  }
 
-  .search-suggestion {
-    display: flex;
-    align-items: center;
-
-    .stock-code {
-      width: 80px;
-      color: #666;
+    .el-input__wrapper {
+      width: 100%;
+      padding: 0 12px;
     }
 
-    .stock-name {
-      flex: 1;
-      color: #333;
+    .el-input__inner {
+      height: 36px;
+      font-size: 14px;
     }
   }
 }
