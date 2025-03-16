@@ -72,7 +72,6 @@
 
 <script>
 import { defineComponent, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
 import { Operation, Edit, Delete, Plus } from '@element-plus/icons-vue'
 import { groupStore } from '@/store/stock'
 
@@ -153,11 +152,6 @@ export default defineComponent({
     }
 
     const deleteGroup = async (group) => {
-      if (group.id === 'default') {
-        ElMessage.warning('默认分组不能删除')
-        return
-      }
-
       if (confirm('确定要删除该分组吗？分组内的股票也会被删除。')) {
         await groupStore.deleteGroup(group.id)
       }

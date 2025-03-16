@@ -179,14 +179,16 @@ export const groupStore = reactive({
 
   async deleteGroup(groupId) {
     try {
-      if (groupId === 'default') return false
+      // 如果只剩一个分组，不允许删除
+      if (this.groups.length <= 1) return false
 
       const index = this.groups.findIndex((g) => g.id === groupId)
       if (index > -1) {
         this.groups.splice(index, 1)
 
+        // 如果删除的是当前选中的分组，切换到默认分组
         if (this.currentGroupId === groupId) {
-          this.currentGroupId = 'default'
+          this.currentGroupId = this.groups[0].id
         }
 
         // 保存到存储
