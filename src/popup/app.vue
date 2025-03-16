@@ -25,7 +25,7 @@
 
 <script>
 import { defineComponent, ref, onMounted, onBeforeUnmount } from 'vue'
-import { groupStore, badge, stockSearch } from '@/store/stock'
+import { groupStore, badge, stockSearch, syncManager } from '@/store/stock'
 import { isTradingTime } from '@/utils/tradingTime'
 import MarketIndexComp from '@/popup/components/MarketIndexComp.vue'
 import StockSearch from '@/popup/components/StockSearch.vue'
@@ -94,6 +94,9 @@ export default defineComponent({
         checkIntervalTimer = setInterval(() => {
           updateTimer()
         }, 60000) // 每分钟检查一次
+
+        // 添加页面关闭事件监听
+        window.addEventListener('beforeunload', handleBeforeUnload)
       } catch (err) {
         console.error('初始化失败:', err)
       }
@@ -103,6 +106,7 @@ export default defineComponent({
       if (updateInterval) clearInterval(updateInterval)
       if (timeSeriesInterval) clearInterval(timeSeriesInterval)
       if (checkIntervalTimer) clearInterval(checkIntervalTimer)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
     })
 
     const updateChartData = async () => {
@@ -353,6 +357,10 @@ export default defineComponent({
           await Promise.all([updateStockData(), updateMarketIndexes()])
         }
       }, getUpdateInterval())
+    }
+
+    const handleBeforeUnload = async () => {
+      await syncManager.syncAll()
     }
 
     return {
