@@ -1,52 +1,18 @@
 <template>
-  <div class="popup_page" :class="{ expanded: showKLineDialog }">
-    <dash-board v-if="!showKLineDialog" @show-kline="showKLine" />
-
-    <k-line-popup
-      v-if="showKLineDialog"
-      :stock-code="selectedStockCode"
-      :stock-name="selectedStockName"
-      @close="closeKLineDialog"
-    />
+  <div class="popup_page">
+    <dash-board />
   </div>
 </template>
 
 <script>
-import { defineComponent, ref } from 'vue'
+import { defineComponent } from 'vue'
 import DashBoard from '@/popup/components/DashBoard.vue'
-import KLinePopup from '@/popup/components/KLinePopup.vue'
 
 export default defineComponent({
   components: {
-    DashBoard,
-    KLinePopup
+    DashBoard
   },
-  setup() {
-    // K线图相关状态
-    const showKLineDialog = ref(false)
-    const selectedStockCode = ref('')
-    const selectedStockName = ref('')
-
-    // 显示K线图
-    const showKLine = (code, name) => {
-      selectedStockCode.value = code
-      selectedStockName.value = name
-      showKLineDialog.value = true
-    }
-
-    // 关闭K线图
-    const closeKLineDialog = () => {
-      showKLineDialog.value = false
-    }
-
-    return {
-      showKLineDialog,
-      selectedStockCode,
-      selectedStockName,
-      showKLine,
-      closeKLineDialog
-    }
-  }
+  setup() {}
 })
 </script>
 
@@ -85,10 +51,5 @@ export default defineComponent({
   transition:
     width 0.3s,
     height 0.3s;
-
-  &.expanded {
-    width: 600px;
-    height: 450px;
-  }
 }
 </style>

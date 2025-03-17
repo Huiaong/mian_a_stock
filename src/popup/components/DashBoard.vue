@@ -14,7 +14,6 @@
       @remove="removeStock"
       @setBadge="setBadgeStock"
       @stockReload="updateStockData"
-      @show-kline="showKLine"
     />
     <group-manage-dialog
       v-model="showGroupDialog"
@@ -42,7 +41,7 @@ export default defineComponent({
     GroupManageDialog
   },
   emits: ['show-kline'],
-  setup(props, { emit }) {
+  setup() {
     const stocks = ref([])
     const groups = ref([])
     const marketIndexes = ref([])
@@ -111,10 +110,6 @@ export default defineComponent({
       if (checkIntervalTimer) clearInterval(checkIntervalTimer)
       window.removeEventListener('beforeunload', handleBeforeUnload)
     })
-
-    const showKLine = (code, name) => {
-      emit('show-kline', code, name)
-    }
 
     // 更新股票数据
     const updateStockData = async () => {
@@ -351,8 +346,7 @@ export default defineComponent({
       updateStockData,
       showGroupDialog,
       currentGroup,
-      chartData,
-      showKLine
+      chartData
     }
   }
 })

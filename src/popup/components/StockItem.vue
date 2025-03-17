@@ -13,7 +13,7 @@
         <span class="name">{{ stock.name }}</span>
         <span class="code">{{ stock.code }}</span>
       </div>
-      <div class="mini-chart" @click="showKLineChart">
+      <div class="mini-chart">
         <div ref="chartRef" class="chart-container"></div>
       </div>
       <div class="stock-price-info">
@@ -64,8 +64,8 @@ export default {
       default: () => {}
     }
   },
-  emits: ['remove', 'pin', 'show-kline'],
-  setup(props, { emit }) {
+  emits: ['remove', 'pin'],
+  setup(props) {
     const chartRef = ref(null)
     let chart = null
 
@@ -184,11 +184,6 @@ export default {
       chart.setOption(option)
     }
 
-    // 添加显示K线图的方法
-    const showKLineChart = () => {
-      emit('show-kline', props.stock.code, props.stock.name)
-    }
-
     // 监听数据变化
     watch(
       () => props.chartData,
@@ -226,8 +221,7 @@ export default {
     })
 
     return {
-      chartRef,
-      showKLineChart
+      chartRef
     }
   }
 }

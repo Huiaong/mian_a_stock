@@ -21,7 +21,6 @@
           :chart-data="chartData[stock.code]"
           @remove="$emit('remove', stock.code)"
           @pin="$emit('setBadge', stock.code === badgeStock ? '' : stock.code)"
-          @show-kline="handleShowKline"
           class="stock-item"
         />
       </transition-group>
@@ -55,14 +54,10 @@ export default {
       required: true
     }
   },
-  emits: ['remove', 'setBadge', 'stockReRanking', 'show-kline'],
+  emits: ['remove', 'setBadge', 'stockReRanking'],
   setup(props, { emit }) {
     const stockListRef = ref(null)
     let source = null
-
-    const handleShowKline = (code, name) => {
-      emit('show-kline', code, name)
-    }
 
     // 添加列表拖拽事件处理
     const handleListDragStart = (event) => {
@@ -126,8 +121,7 @@ export default {
       stockListRef,
       handleListDragStart,
       handleListDragEnter,
-      handleListDragEnd,
-      handleShowKline
+      handleListDragEnd
     }
   }
 }

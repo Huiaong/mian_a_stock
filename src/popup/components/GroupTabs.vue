@@ -18,7 +18,6 @@
           :chart-data="chartData"
           @remove="$emit('remove', $event)"
           @setBadge="$emit('setBadge', $event)"
-          @show-kline="handleShowKline"
           @stockReRanking="handleStockReRanking(group.id, $event)"
         />
       </el-tab-pane>
@@ -92,23 +91,12 @@ export default {
       required: true
     }
   },
-  emits: [
-    'groupChange',
-    'showManage',
-    'remove',
-    'setBadge',
-    'stockReload',
-    'show-kline'
-  ],
+  emits: ['groupChange', 'showManage', 'remove', 'setBadge', 'stockReload'],
   setup(props, { emit }) {
     const updateKey = ref(0)
     const tabsRef = ref(null)
     const visibleGroups = ref([])
     const hiddenGroups = ref([])
-
-    const handleShowKline = (code, name) => {
-      emit('show-kline', code, name)
-    }
 
     // 处理隐藏标签的选择
     const handleHiddenTabSelect = (groupId) => {
@@ -191,8 +179,7 @@ export default {
       visibleGroups,
       hiddenGroups,
       handleHiddenTabSelect,
-      handleStockReRanking,
-      handleShowKline
+      handleStockReRanking
     }
   }
 }
