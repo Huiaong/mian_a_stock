@@ -10,7 +10,7 @@ export function isTradingTime() {
 
   // 判断是否在交易时段内
   const isInTradingHours =
-    (time >= 930 && time <= 1130) || (time >= 1300 && time <= 1500)
+    (time >= 915 && time <= 1130) || (time >= 1300 && time <= 1500)
 
   if (!isInTradingHours) return false
 

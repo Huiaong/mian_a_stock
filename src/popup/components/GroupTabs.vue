@@ -60,7 +60,7 @@
 </template>
 
 <script>
-import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { Edit, More } from '@element-plus/icons-vue'
 import StockList from './StockList.vue'
 import { groupStore } from '@/store/stock'
@@ -124,10 +124,8 @@ export default {
     }
 
     // 计算可见和隐藏的分组
-    const updateVisibleGroups = async () => {
+    const updateVisibleGroups = () => {
       if (!tabsRef.value || !tabsRef.value.$el) return
-
-      await nextTick()
 
       const tabsHeader = tabsRef.value.$el.querySelector('.el-tabs__header')
       if (!tabsHeader) return
@@ -139,47 +137,38 @@ export default {
 
       // 如果导航栏总宽度小于容器宽度，显示所有分组
       if (tabsNav.scrollWidth <= tabsHeader.clientWidth - extraWidth) {
-        visibleGroups.value = props.groups
+        visibleGroups.value = [...props.groups]
         hiddenGroups.value = []
         return
       }
 
       const availableWidth = tabsHeader.clientWidth - extraWidth
-      const tabs = Array.from(tabsNav.querySelectorAll('.el-tabs__item') || [])
-      let currentWidth = 0
-      const visible = []
-      const hidden = []
 
-      // 遍历所有标签页，根据实际 DOM 宽度计算
-      for (let i = 0; i < props.groups.length; i++) {
-        const group = props.groups[i]
-        const tab = tabs[i]
+      // 计算每个标签的宽度
+      const tabWidths = props.groups.map((group) => {
         const numLength = (group.stocks.length % 10) + 1
-        // 如果没有对应的 DOM 元素，使用估算宽度
-        const tabWidth = tab
-          ? tab.offsetWidth
-          : group.name.length * 14 + numLength * 8 + 32.886
+        return group.name.length * 14 + numLength * 8 + 32.886
+      })
 
-        if (currentWidth + tabWidth < availableWidth) {
-          visible.push(group)
-          currentWidth += tabWidth
-        } else {
-          hidden.push(group)
+      // 计算可见标签的索引
+      let currentWidth = 0
+      const visibleIndices = []
+
+      // 从左到右添加标签，直到填满可用宽度
+      for (let i = 0; i < props.groups.length; i++) {
+        if (currentWidth + tabWidths[i] < availableWidth) {
+          visibleIndices.push(i)
+          currentWidth += tabWidths[i]
         }
       }
 
-      visibleGroups.value = visible
-      hiddenGroups.value = hidden
-    }
+      // 根据索引创建可见和隐藏分组
+      const visible = visibleIndices.map((i) => props.groups[i])
+      const hidden = props.groups.filter((_, i) => !visibleIndices.includes(i))
 
-    // 处理窗口大小变化
-    const handleResize = () => {
-      nextTick(() => {
-        setTimeout(() => {
-          updateVisibleGroups()
-          scrollToActiveTab()
-        }, 100) // 给予一定延迟确保 DOM 已更新
-      })
+      // 使用扩展运算符创建新数组，确保触发响应式更新
+      visibleGroups.value = [...visible]
+      hiddenGroups.value = [...hidden]
     }
 
     // 监听分组变化时延迟更新可见性
@@ -187,46 +176,10 @@ export default {
       () => props.groups,
       () => {
         updateKey.value++
-        nextTick(() => {
-          setTimeout(() => {
-            updateVisibleGroups()
-            scrollToActiveTab()
-          }, 100) // 给予一定延迟确保 DOM 已更新
-        })
+        updateVisibleGroups()
       },
-      { deep: true }
+      { deep: true, immediate: true }
     )
-
-    // 监听选中值变化
-    watch(
-      () => props.modelValue,
-      () => {
-        nextTick(() => {
-          scrollToActiveTab()
-        })
-      }
-    )
-
-    // 滚动到当前选中的标签
-    const scrollToActiveTab = async () => {
-      await nextTick()
-      if (!tabsRef.value || !tabsRef.value.$el) return
-
-      const navRef = tabsRef.value.$el.querySelector('.el-tabs__nav')
-      if (!navRef) return
-
-      const activeTab = navRef.querySelector('.is-active')
-      if (activeTab && navRef) {
-        const navRect = navRef.getBoundingClientRect()
-        const tabRect = activeTab.getBoundingClientRect()
-        const scrollLeft = tabRect.left - navRect.left + navRef.scrollLeft - 40
-
-        navRef.scrollTo({
-          left: scrollLeft,
-          behavior: 'smooth'
-        })
-      }
-    }
 
     const handleStockReRanking = async (groupId, stockCodes) => {
       // 保存到 groupStore
@@ -238,11 +191,6 @@ export default {
 
     onMounted(() => {
       updateVisibleGroups()
-      window.addEventListener('resize', handleResize)
-    })
-
-    onUnmounted(() => {
-      window.removeEventListener('resize', handleResize)
     })
 
     return {

@@ -377,8 +377,6 @@ export default defineComponent({
 
       // 然后在下一个 tick 设置为最新值
       groups.value = groupStore.groups
-
-      console.log('Dashboard groups updated:', groups.value)
     }
 
     // 动态调整更新频率
