@@ -39,11 +39,11 @@ import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
 import { Delete } from '@element-plus/icons-vue'
 import * as echarts from 'echarts/core'
 import { LineChart } from 'echarts/charts'
-import { GridComponent } from 'echarts/components'
+import { GridComponent, MarkLineComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 
 // 注册必要的组件
-echarts.use([GridComponent, LineChart, CanvasRenderer])
+echarts.use([GridComponent, LineChart, CanvasRenderer, MarkLineComponent])
 
 export default {
   name: 'StockItem',
@@ -60,8 +60,8 @@ export default {
       default: false
     },
     chartData: {
-      type: Array,
-      default: () => []
+      type: Object,
+      default: () => {}
     }
   },
   emits: ['remove', 'pin', 'show-kline'],
@@ -83,10 +83,17 @@ export default {
 
     // 更新图表数据
     const updateChart = () => {
-      if (!chart || !props.chartData || props.chartData.length === 0) return
+      if (
+        !chart ||
+        !props.chartData ||
+        !props.chartData.points ||
+        props.chartData.points.length === 0
+      ) {
+        return
+      }
 
-      const data = props.chartData.map((item) => item.price)
-      const basePrice = data[0] || props.stock.price // 使用第一个数据点作为基准价，如果没有则使用当前价格
+      const data = props.chartData.points.map((item) => item.price)
+      const basePrice = props.chartData.preClose || data[0] || props.stock.price // 使用昨日收盘价作为基准价
       const isUp = props.stock.change >= 0
 
       // 创建一个固定长度为240的数据数组，全部填充为null
@@ -96,6 +103,18 @@ export default {
       for (let i = 0; i < Math.min(data.length, 240); i++) {
         fullData[i] = data[i]
       }
+
+      // 计算最大值和最小值，确保基准线在视图范围内
+      let minValue = Math.min(
+        ...data.filter((v) => v !== null && v !== undefined)
+      )
+      let maxValue = Math.max(
+        ...data.filter((v) => v !== null && v !== undefined)
+      )
+
+      // 确保基准价在视图范围内
+      minValue = Math.min(minValue, basePrice) * 0.998 // 稍微扩大范围
+      maxValue = Math.max(maxValue, basePrice) * 1.002 // 稍微扩大范围
 
       const option = {
         animation: false,
@@ -114,7 +133,9 @@ export default {
         yAxis: {
           type: 'value',
           show: false,
-          scale: true
+          scale: true,
+          min: minValue,
+          max: maxValue
         },
         series: [
           {
@@ -139,25 +160,25 @@ export default {
                   color: 'rgba(255, 255, 255, 0)'
                 }
               ])
+            },
+            // 将 markLine 添加到 series 中
+            markLine: {
+              silent: true,
+              symbol: 'none', // 不显示端点符号
+              lineStyle: {
+                color: '#999',
+                type: 'dashed',
+                width: 1
+              },
+              data: [
+                {
+                  yAxis: basePrice,
+                  label: { show: false }
+                }
+              ]
             }
           }
-        ],
-        // 添加开盘价横向虚线
-        markLine: {
-          silent: true,
-          symbol: 'none', // 不显示端点符号
-          lineStyle: {
-            color: '#999',
-            type: 'dashed',
-            width: 1
-          },
-          data: [
-            {
-              yAxis: basePrice,
-              label: { show: false }
-            }
-          ]
-        }
+        ]
       }
 
       chart.setOption(option)

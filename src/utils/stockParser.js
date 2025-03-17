@@ -177,6 +177,9 @@ export async function fetchTimeSeriesData(code) {
       return []
     }
 
+    // 获取昨日收盘价
+    const preClose = data.data.preClose || 0
+
     // 解析分时数据
     const chartPoints = data.data.trends.map((item) => {
       const [time, price] = item.split(',')
@@ -186,10 +189,17 @@ export async function fetchTimeSeriesData(code) {
       }
     })
 
-    return chartPoints
+    // 返回数据中添加昨日收盘价
+    return {
+      points: chartPoints,
+      preClose: preClose
+    }
   } catch (error) {
     console.error('获取分时数据失败:', error)
     // 如果请求失败，尝试返回缓存的数据
-    return []
+    return {
+      points: [],
+      preClose: 0
+    }
   }
 }

@@ -269,11 +269,14 @@ export default defineComponent({
 
     const fetchTimeSeries = async (code) => {
       try {
-        const chartPoints = await stockSearch.fetchTimeSeriesData(code)
-        chartData.value[code] = chartPoints
+        const result = await stockSearch.fetchTimeSeriesData(code)
+        chartData.value[code] = result
       } catch (error) {
         console.error('获取分时数据失败:', error)
-        chartData.value[code] = []
+        chartData.value[code] = {
+          points: [],
+          preClose: 0
+        }
       }
     }
 
