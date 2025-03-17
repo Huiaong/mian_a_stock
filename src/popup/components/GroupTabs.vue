@@ -18,7 +18,6 @@
           :chart-data="chartData"
           @remove="$emit('remove', $event)"
           @setBadge="$emit('setBadge', $event)"
-          @canvas-ready="handleCanvasReady"
           @show-kline="handleShowKline"
           @stockReRanking="handleStockReRanking(group.id, $event)"
         />
@@ -98,7 +97,6 @@ export default {
     'showManage',
     'remove',
     'setBadge',
-    'canvas-ready',
     'stockReload',
     'show-kline'
   ],
@@ -115,12 +113,6 @@ export default {
     // 处理隐藏标签的选择
     const handleHiddenTabSelect = (groupId) => {
       emit('groupChange', groupId)
-    }
-
-    // 添加处理 canvas-ready 事件的函数
-    const handleCanvasReady = (code, canvas) => {
-      // 直接转发事件，保持参数顺序
-      emit('canvas-ready', code, canvas)
     }
 
     // 计算可见和隐藏的分组
@@ -199,7 +191,6 @@ export default {
       visibleGroups,
       hiddenGroups,
       handleHiddenTabSelect,
-      handleCanvasReady,
       handleStockReRanking,
       handleShowKline
     }

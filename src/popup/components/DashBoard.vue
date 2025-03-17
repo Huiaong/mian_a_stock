@@ -13,7 +13,6 @@
       @showManage="showGroupDialog = true"
       @remove="removeStock"
       @setBadge="setBadgeStock"
-      @canvas-ready="handleCanvasReady"
       @stockReload="updateStockData"
       @show-kline="showKLine"
     />
@@ -268,91 +267,6 @@ export default defineComponent({
       }
     }
 
-    const handleCanvasReady = (code, canvas) => {
-      if (!canvas || !chartData.value[code]) return
-
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
-
-      const data = chartData.value[code]
-      const width = canvas.width
-      const height = canvas.height
-
-      // 清除画布
-      ctx.clearRect(0, 0, width, height)
-
-      if (data.length > 0) {
-        // 总共需要240个点（4小时交易时间）
-        const totalPoints = 240
-        const currentPoints = data.length
-        const prices = data.map((item) => item.price)
-        const basePrice = prices[0] // 使用开盘价作为基准
-        const maxDiff = Math.max(
-          Math.abs(Math.max(...prices) - basePrice),
-          Math.abs(Math.min(...prices) - basePrice)
-        )
-        const max = basePrice + maxDiff
-        const min = basePrice - maxDiff
-        const range = max - min || 1
-
-        const padding = 2
-        const chartWidth = width - 2 * padding
-        const chartHeight = height - 2 * padding
-
-        // 绘制基准线
-        ctx.beginPath()
-        ctx.strokeStyle = '#999'
-        ctx.setLineDash([2, 2])
-        const baseY = padding + chartHeight * (1 - (basePrice - min) / range)
-        ctx.moveTo(padding, baseY)
-        ctx.lineTo(width - padding, baseY)
-        ctx.stroke()
-        ctx.setLineDash([])
-
-        // 获取对应的股票数据以确定涨跌
-        const stock = stocks.value.find((s) => s.code === code)
-        const isUp = stock ? stock.change >= 0 : false
-
-        // 绘制分时线
-        ctx.beginPath()
-        ctx.strokeStyle = isUp ? '#f5222d' : '#52c41a'
-        ctx.lineWidth = 1
-
-        // 计算每个点的位置，考虑总长度为240点
-        data.forEach((point, index) => {
-          // 根据当前点数调整x轴位置，确保线条从左开始绘制
-          const x = padding + (chartWidth * index) / (totalPoints - 1)
-          const y = padding + chartHeight * (1 - (point.price - min) / range)
-          if (index === 0) {
-            ctx.moveTo(x, y)
-          } else {
-            ctx.lineTo(x, y)
-          }
-        })
-
-        // 如果当前点数小于240，绘制剩余空白部分的边框
-        if (currentPoints < totalPoints) {
-          const lastPoint = data[data.length - 1]
-          const lastX =
-            padding + (chartWidth * (currentPoints - 1)) / (totalPoints - 1)
-          const lastY =
-            padding + chartHeight * (1 - (lastPoint.price - min) / range)
-
-          // 绘制虚线表示未来时间
-          ctx.stroke() // 先结束实线部分
-          ctx.beginPath()
-          ctx.setLineDash([2, 2])
-          ctx.moveTo(lastX, lastY)
-          ctx.lineTo(width - padding, lastY)
-          ctx.strokeStyle = '#999'
-          ctx.stroke()
-          ctx.setLineDash([])
-        } else {
-          ctx.stroke()
-        }
-      }
-    }
-
     const fetchTimeSeries = async (code) => {
       try {
         const chartPoints = await stockSearch.fetchTimeSeriesData(code)
@@ -429,13 +343,12 @@ export default defineComponent({
       badgeStock,
       setBadgeStock,
       selectSearchResult,
-      handleCanvasReady,
-      showGroupDialog,
-      currentGroup,
-      chartData,
       handleGroupsUpdate,
       handleGroupChange,
       updateStockData,
+      showGroupDialog,
+      currentGroup,
+      chartData,
       showKLine
     }
   }

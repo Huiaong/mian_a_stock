@@ -14,7 +14,7 @@
         <span class="code">{{ stock.code }}</span>
       </div>
       <div class="mini-chart" @click="showKLineChart">
-        <canvas :ref="setCanvasRef" width="120" height="30"></canvas>
+        <div ref="chartRef" class="chart-container"></div>
       </div>
       <div class="stock-price-info">
         <div class="price-container">
@@ -35,8 +35,15 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
 import { Delete } from '@element-plus/icons-vue'
+import * as echarts from 'echarts/core'
+import { LineChart } from 'echarts/charts'
+import { GridComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+
+// 注册必要的组件
+echarts.use([GridComponent, LineChart, CanvasRenderer])
 
 export default {
   name: 'StockItem',
@@ -57,24 +64,148 @@ export default {
       default: () => []
     }
   },
-  emits: ['remove', 'pin', 'canvas-ready', 'show-kline'],
+  emits: ['remove', 'pin', 'show-kline'],
   setup(props, { emit }) {
-    const canvas = ref(null)
+    const chartRef = ref(null)
+    let chart = null
 
-    const setCanvasRef = (el) => {
-      if (el) {
-        canvas.value = el
-        emit('canvas-ready', props.stock.code, el)
+    // 初始化图表
+    const initChart = () => {
+      if (!chartRef.value) return
+
+      if (chart) {
+        chart.dispose()
       }
+
+      chart = echarts.init(chartRef.value)
+      updateChart()
     }
-    
+
+    // 更新图表数据
+    const updateChart = () => {
+      if (!chart || !props.chartData || props.chartData.length === 0) return
+
+      const data = props.chartData.map((item) => item.price)
+      const basePrice = data[0] || props.stock.price // 使用第一个数据点作为基准价，如果没有则使用当前价格
+      const isUp = props.stock.change >= 0
+
+      // 创建一个固定长度为240的数据数组，全部填充为null
+      const fullData = new Array(240).fill(null)
+
+      // 将实际数据填充到数组中
+      for (let i = 0; i < Math.min(data.length, 240); i++) {
+        fullData[i] = data[i]
+      }
+
+      const option = {
+        animation: false,
+        grid: {
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: 0
+        },
+        xAxis: {
+          type: 'category',
+          show: false,
+          boundaryGap: false,
+          data: Array.from({ length: 240 }, (_, i) => i)
+        },
+        yAxis: {
+          type: 'value',
+          show: false,
+          scale: true
+        },
+        series: [
+          {
+            type: 'line',
+            data: fullData,
+            showSymbol: false,
+            connectNulls: false, // 不连接空值点，这样未来时间会留空
+            lineStyle: {
+              color: isUp ? '#f5222d' : '#52c41a',
+              width: 1
+            },
+            areaStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                {
+                  offset: 0,
+                  color: isUp
+                    ? 'rgba(245, 34, 45, 0.2)'
+                    : 'rgba(82, 196, 26, 0.2)'
+                },
+                {
+                  offset: 1,
+                  color: 'rgba(255, 255, 255, 0)'
+                }
+              ])
+            }
+          }
+        ],
+        // 添加开盘价横向虚线
+        markLine: {
+          silent: true,
+          symbol: 'none', // 不显示端点符号
+          lineStyle: {
+            color: '#999',
+            type: 'dashed',
+            width: 1
+          },
+          data: [
+            {
+              yAxis: basePrice,
+              label: { show: false }
+            }
+          ]
+        }
+      }
+
+      chart.setOption(option)
+    }
+
     // 添加显示K线图的方法
     const showKLineChart = () => {
       emit('show-kline', props.stock.code, props.stock.name)
     }
 
+    // 监听数据变化
+    watch(
+      () => props.chartData,
+      () => {
+        if (chart) {
+          updateChart()
+        }
+      },
+      { deep: true }
+    )
+
+    // 监听股票涨跌变化，更新图表颜色
+    watch(
+      () => props.stock.change,
+      () => {
+        if (chart) {
+          updateChart()
+        }
+      }
+    )
+
+    onMounted(() => {
+      initChart()
+
+      // 添加窗口大小变化监听
+      window.addEventListener('resize', initChart)
+    })
+
+    onBeforeUnmount(() => {
+      if (chart) {
+        chart.dispose()
+        chart = null
+      }
+      window.removeEventListener('resize', initChart)
+    })
+
     return {
-      setCanvasRef,
+      chartRef,
       showKLineChart
     }
   }
@@ -131,9 +262,14 @@ export default {
       width: 120px;
       height: 30px;
       cursor: pointer;
-      
+
       &:hover {
         opacity: 0.8;
+      }
+
+      .chart-container {
+        width: 100%;
+        height: 100%;
       }
     }
 

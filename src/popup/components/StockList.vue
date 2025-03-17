@@ -21,7 +21,6 @@
           :chart-data="chartData[stock.code]"
           @remove="$emit('remove', stock.code)"
           @pin="$emit('setBadge', stock.code === badgeStock ? '' : stock.code)"
-          @canvas-ready="handleCanvasReady"
           @show-kline="handleShowKline"
           class="stock-item"
         />
@@ -56,7 +55,7 @@ export default {
       required: true
     }
   },
-  emits: ['remove', 'setBadge', 'canvas-ready', 'stockReRanking', 'show-kline'],
+  emits: ['remove', 'setBadge', 'stockReRanking', 'show-kline'],
   setup(props, { emit }) {
     const stockListRef = ref(null)
     let source = null
@@ -123,16 +122,11 @@ export default {
       emit('stockReRanking', newStocksCodes)
     }
 
-    const handleCanvasReady = (code, canvas) => {
-      emit('canvas-ready', code, canvas)
-    }
-
     return {
       stockListRef,
       handleListDragStart,
       handleListDragEnter,
       handleListDragEnd,
-      handleCanvasReady,
       handleShowKline
     }
   }
