@@ -57,8 +57,8 @@ export const badge = reactive({
 
   // 先从本地存储加载，如果本地没有，则从sync加载
   async loadFromStorage() {
-    this.badgeStock = await storage.getLocal('badgeStock', '')
-    if (this.badgeStock) {
+    this.badgeStock = await storage.getLocal('badgeStock', null)
+    if (this.badgeStock !== null) {
       return
     }
 
