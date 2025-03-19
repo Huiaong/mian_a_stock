@@ -9,9 +9,12 @@
             class="tab-item"
             :class="{ active: modelValue === group.id }"
             @click="$emit('groupChange', group.id)"
+            ref="tabItems"
           >
             {{ group.name }} ({{ group.stocks.length }})
           </div>
+          <!-- 添加跟随滑块 -->
+          <div class="active-tab-indicator" :style="indicatorStyle"></div>
         </div>
       </div>
 
@@ -50,22 +53,20 @@
     </div>
 
     <div class="tabs-content">
-      <!-- 只渲染当前选中的分组内容 -->
-      <div
-        v-for="group in allGroups"
-        :key="group.id"
-        v-show="modelValue === group.id"
-        class="tab-pane"
-      >
-        <stock-list
-          :stocks="getGroupStocks(group)"
-          :badge-stock="badgeStock"
-          :chart-data="chartData"
-          @remove="$emit('remove', $event)"
-          @setBadge="$emit('setBadge', $event)"
-          @stockReRanking="handleStockReRanking(group.id, $event)"
-        />
-      </div>
+      <!-- 为内容添加过渡动画 -->
+      <transition name="fade" mode="out-in">
+        <div :key="modelValue" class="tab-pane">
+          <stock-list
+            v-if="currentGroup"
+            :stocks="getGroupStocks(currentGroup)"
+            :badge-stock="badgeStock"
+            :chart-data="chartData"
+            @remove="$emit('remove', $event)"
+            @setBadge="$emit('setBadge', $event)"
+            @stockReRanking="handleStockReRanking(currentGroup.id, $event)"
+          />
+        </div>
+      </transition>
     </div>
   </div>
 </template>
@@ -108,8 +109,15 @@ export default {
   setup(props, { emit }) {
     const tabsNavWrap = ref(null)
     const tabsNav = ref(null)
+    const tabItems = ref([])
     const visibleGroups = ref([])
     const hiddenGroups = ref([])
+    const indicatorStyle = ref({
+      width: '0px',
+      transform: 'translateX(0px)',
+      opacity: '0',
+      transition: 'transform 0.3s, width 0.3s, opacity 0.3s'
+    })
 
     // 合并所有分组，确保所有分组的股票列表都能被渲染
     const allGroups = computed(() => {
@@ -125,6 +133,42 @@ export default {
     const handleHiddenTabSelect = (groupId) => {
       // 通知父组件切换分组
       emit('groupChange', groupId)
+    }
+
+    // 更新标签指示器位置
+    const updateIndicator = () => {
+      nextTick(() => {
+        // 检查当前选中的标签是否在可见组中
+        const activeIndex = visibleGroups.value.findIndex(
+          (group) => group.id === props.modelValue
+        )
+
+        // 如果当前选中的是隐藏标签，则隐藏指示器
+        if (activeIndex === -1) {
+          const availableWidth = tabsNavWrap.value
+            ? tabsNavWrap.value.clientWidth
+            : 277
+          indicatorStyle.value = {
+            width: '0px',
+            transform: `translateX(${availableWidth}px)`,
+            opacity: '0',
+            transition: 'transform 0.3s, width 0.3s, opacity 0.3s'
+          }
+          return
+        }
+
+        if (!tabItems.value || tabItems.value.length === 0) return
+
+        const activeTab = tabItems.value[activeIndex]
+        if (!activeTab) return
+
+        indicatorStyle.value = {
+          width: `${activeTab.offsetWidth}px`,
+          transform: `translateX(${activeTab.offsetLeft}px)`,
+          opacity: '1',
+          transition: 'transform 0.3s, width 0.3s, opacity 0.3s'
+        }
+      })
     }
 
     // 计算可见和隐藏分组
@@ -158,6 +202,11 @@ export default {
       // 使用扩展运算符创建新数组，确保触发响应式更新
       visibleGroups.value = [...visible]
       hiddenGroups.value = [...hidden]
+
+      // 更新指示器位置
+      nextTick(() => {
+        updateIndicator()
+      })
     }
 
     // 监听分组变化和浏览器窗口大小变化
@@ -177,8 +226,20 @@ export default {
       () => {
         nextTick(() => {
           updateVisibleGroups()
+          updateIndicator()
         })
       }
+    )
+
+    // 监听可见分组变化，更新指示器
+    watch(
+      () => visibleGroups.value,
+      () => {
+        nextTick(() => {
+          updateIndicator()
+        })
+      },
+      { deep: true }
     )
 
     const handleStockReRanking = async (groupId, stockCodes) => {
@@ -189,11 +250,26 @@ export default {
       emit('stockReload')
     }
 
+    // 在 allGroups 计算属性后添加这个计算属性
+    const currentGroup = computed(() => {
+      return (
+        allGroups.value.find((group) => group.id === props.modelValue) || null
+      )
+    })
+
     onMounted(() => {
       updateVisibleGroups()
 
+      // 初始化后更新指示器位置
+      nextTick(() => {
+        updateIndicator()
+      })
+
       // 监听窗口大小变化
-      window.addEventListener('resize', updateVisibleGroups)
+      window.addEventListener('resize', () => {
+        updateVisibleGroups()
+        updateIndicator()
+      })
     })
 
     // 在组件销毁前移除事件监听
@@ -204,12 +280,15 @@ export default {
     return {
       tabsNavWrap,
       tabsNav,
+      tabItems,
       visibleGroups,
       hiddenGroups,
       allGroups,
+      currentGroup,
       handleHiddenTabSelect,
       handleStockReRanking,
-      getGroupStocks
+      getGroupStocks,
+      indicatorStyle
     }
   }
 }
@@ -245,6 +324,7 @@ export default {
   transition: transform 0.3s;
   overflow-x: auto;
   scrollbar-width: none;
+  position: relative;
 
   &::-webkit-scrollbar {
     display: none;
@@ -259,6 +339,8 @@ export default {
   transition: color 0.3s;
   position: relative;
   margin-right: 10px;
+  font-size: 14px;
+  font-weight: 500;
 
   &:hover {
     color: var(--el-color-primary);
@@ -267,17 +349,19 @@ export default {
   &.active {
     color: var(--el-color-primary);
     font-weight: bold;
-
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background-color: var(--el-color-primary);
-    }
   }
+}
+
+// 活动标签指示器
+.active-tab-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background-color: var(--el-color-primary);
+  transition:
+    transform 0.3s,
+    width 0.3s;
 }
 
 .tabs-extra {
@@ -331,5 +415,21 @@ export default {
     color: var(--el-color-primary);
     font-weight: bold;
   }
+}
+
+// 添加内容过渡动画
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.fade-enter-to,
+.fade-leave-from {
+  opacity: 1;
 }
 </style>
