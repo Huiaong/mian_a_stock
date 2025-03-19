@@ -1,64 +1,77 @@
 <template>
   <div class="group-header">
-    <el-tabs
-      ref="tabsRef"
-      :model-value="modelValue"
-      @update:model-value="$emit('groupChange', $event)"
-      class="group-tabs"
-    >
-      <el-tab-pane
-        v-for="group in visibleGroups"
-        :key="group.id + '_' + updateKey"
-        :label="group.name + ` (${group.stocks.length})`"
-        :name="group.id"
+    <div class="custom-tabs">
+      <div class="tabs-nav-wrap" ref="tabsNavWrap">
+        <div class="tabs-nav" ref="tabsNav">
+          <div
+            v-for="group in visibleGroups"
+            :key="group.id"
+            class="tab-item"
+            :class="{ active: modelValue === group.id }"
+            @click="$emit('groupChange', group.id)"
+          >
+            {{ group.name }} ({{ group.stocks.length }})
+          </div>
+        </div>
+      </div>
+
+      <div class="tabs-extra">
+        <el-dropdown
+          v-if="hiddenGroups.length"
+          trigger="hover"
+          @command="handleHiddenTabSelect"
+        >
+          <el-button class="more-tabs-btn" type="primary" text>
+            <el-icon><More /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item
+                v-for="group in hiddenGroups"
+                :key="group.id"
+                :command="group.id"
+                :class="{ 'is-active': modelValue === group.id }"
+              >
+                {{ group.name }} ({{ group.stocks.length }})
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <div class="divider"></div>
+        <el-button
+          class="add-group-btn"
+          type="primary"
+          link
+          @click="$emit('showManage')"
+        >
+          <el-icon><Edit /></el-icon>
+        </el-button>
+      </div>
+    </div>
+
+    <div class="tabs-content">
+      <!-- 只渲染当前选中的分组内容 -->
+      <div
+        v-for="group in allGroups"
+        :key="group.id"
+        v-show="modelValue === group.id"
+        class="tab-pane"
       >
         <stock-list
-          :stocks="stocks"
+          :stocks="getGroupStocks(group)"
           :badge-stock="badgeStock"
           :chart-data="chartData"
           @remove="$emit('remove', $event)"
           @setBadge="$emit('setBadge', $event)"
           @stockReRanking="handleStockReRanking(group.id, $event)"
         />
-      </el-tab-pane>
-    </el-tabs>
-    <div class="tabs-extra">
-      <el-dropdown
-        v-if="hiddenGroups.length"
-        trigger="hover"
-        @command="handleHiddenTabSelect"
-      >
-        <el-button class="more-tabs-btn" type="primary" text>
-          <el-icon><More /></el-icon>
-        </el-button>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item
-              v-for="group in hiddenGroups"
-              :key="group.id"
-              :command="group.id"
-              :class="{ 'is-active': modelValue === group.id }"
-            >
-              {{ group.name }} ({{ group.stocks.length }})
-            </el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
-      <div class="divider"></div>
-      <el-button
-        class="add-group-btn"
-        type="primary"
-        link
-        @click="$emit('showManage')"
-      >
-        <el-icon><Edit /></el-icon>
-      </el-button>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount } from 'vue'
 import { Edit, More } from '@element-plus/icons-vue'
 import StockList from './StockList.vue'
 import { groupStore } from '@/store/stock'
@@ -93,36 +106,32 @@ export default {
   },
   emits: ['groupChange', 'showManage', 'remove', 'setBadge', 'stockReload'],
   setup(props, { emit }) {
-    const updateKey = ref(0)
-    const tabsRef = ref(null)
+    const tabsNavWrap = ref(null)
+    const tabsNav = ref(null)
     const visibleGroups = ref([])
     const hiddenGroups = ref([])
 
+    // 合并所有分组，确保所有分组的股票列表都能被渲染
+    const allGroups = computed(() => {
+      return [...visibleGroups.value, ...hiddenGroups.value]
+    })
+
+    // 根据分组获取其包含的股票详情
+    const getGroupStocks = (group) => {
+      return props.stocks.filter((stock) => group.stocks.includes(stock.code))
+    }
+
     // 处理隐藏标签的选择
     const handleHiddenTabSelect = (groupId) => {
+      // 通知父组件切换分组
       emit('groupChange', groupId)
     }
 
-    // 计算可见和隐藏的分组
+    // 计算可见和隐藏分组
     const updateVisibleGroups = () => {
-      if (!tabsRef.value || !tabsRef.value.$el) return
+      if (!tabsNavWrap.value) return
 
-      const tabsHeader = tabsRef.value.$el.querySelector('.el-tabs__header')
-      if (!tabsHeader) return
-
-      const tabsNav = tabsRef.value.$el.querySelector('.el-tabs__nav')
-      if (!tabsNav) return
-
-      const extraWidth = 83 // 右侧按钮区域宽度
-
-      // 如果导航栏总宽度小于容器宽度，显示所有分组
-      if (tabsNav.scrollWidth <= tabsHeader.clientWidth - extraWidth) {
-        visibleGroups.value = [...props.groups]
-        hiddenGroups.value = []
-        return
-      }
-
-      const availableWidth = tabsHeader.clientWidth - extraWidth
+      const availableWidth = tabsNavWrap.value.clientWidth
 
       // 计算每个标签的宽度
       const tabWidths = props.groups.map((group) => {
@@ -151,14 +160,25 @@ export default {
       hiddenGroups.value = [...hidden]
     }
 
-    // 监听分组变化时延迟更新可见性
+    // 监听分组变化和浏览器窗口大小变化
     watch(
       () => props.groups,
       () => {
-        updateKey.value++
-        updateVisibleGroups()
+        nextTick(() => {
+          updateVisibleGroups()
+        })
       },
       { deep: true, immediate: true }
+    )
+
+    // 监听选中分组的变化
+    watch(
+      () => props.modelValue,
+      () => {
+        nextTick(() => {
+          updateVisibleGroups()
+        })
+      }
     )
 
     const handleStockReRanking = async (groupId, stockCodes) => {
@@ -171,15 +191,25 @@ export default {
 
     onMounted(() => {
       updateVisibleGroups()
+
+      // 监听窗口大小变化
+      window.addEventListener('resize', updateVisibleGroups)
+    })
+
+    // 在组件销毁前移除事件监听
+    onBeforeUnmount(() => {
+      window.removeEventListener('resize', updateVisibleGroups)
     })
 
     return {
-      updateKey,
-      tabsRef,
+      tabsNavWrap,
+      tabsNav,
       visibleGroups,
       hiddenGroups,
+      allGroups,
       handleHiddenTabSelect,
-      handleStockReRanking
+      handleStockReRanking,
+      getGroupStocks
     }
   }
 }
@@ -195,18 +225,62 @@ export default {
   overflow: hidden;
 }
 
-.group-tabs {
+.custom-tabs {
+  display: flex;
+  position: relative;
+  border-bottom: 1px solid #e4e7ed;
+  margin-bottom: 12px;
+}
+
+.tabs-nav-wrap {
   flex: 1;
   overflow: hidden;
+  position: relative;
+}
+
+.tabs-nav {
   display: flex;
-  flex-direction: column;
-  width: 100%;
+  white-space: nowrap;
+  position: relative;
+  transition: transform 0.3s;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.tab-item {
+  padding: 0 10px;
+  height: 32px;
+  line-height: 32px;
+  cursor: pointer;
+  transition: color 0.3s;
+  position: relative;
+  margin-right: 10px;
+
+  &:hover {
+    color: var(--el-color-primary);
+  }
+
+  &.active {
+    color: var(--el-color-primary);
+    font-weight: bold;
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background-color: var(--el-color-primary);
+    }
+  }
 }
 
 .tabs-extra {
-  position: absolute;
-  right: 0;
-  top: 0;
   display: flex;
   align-items: center;
   height: 32px;
@@ -238,62 +312,24 @@ export default {
   }
 }
 
+.tabs-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-pane {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 :deep(.el-dropdown-menu__item) {
   &.is-active {
     color: var(--el-color-primary);
     font-weight: bold;
-  }
-}
-
-/* 确保标签页内容区域占据剩余空间 */
-:deep(.el-tabs__content) {
-  flex: 1;
-  overflow: hidden;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-:deep(.el-tab-pane) {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* 修复标签头部位置 */
-:deep(.el-tabs__header) {
-  margin-bottom: 12px;
-  order: -1; /* 确保标签头部在内容之前 */
-
-  .el-tabs__nav-wrap {
-    flex: 1;
-    margin-right: 0;
-    padding-right: 0;
-
-    &::after {
-      height: 1px;
-    }
-  }
-
-  .el-tabs__nav-scroll {
-    overflow-x: auto;
-    margin-right: 0;
-    padding-right: 0;
-
-    &::-webkit-scrollbar {
-      display: none;
-    }
-    scrollbar-width: none;
-  }
-
-  .el-tabs__nav {
-    white-space: nowrap;
-    float: none;
-
-    .el-tabs__item {
-      padding: 0 10px;
-    }
   }
 }
 </style>
