@@ -176,12 +176,28 @@ export default {
       if (!tabsNavWrap.value) return
 
       const availableWidth = tabsNavWrap.value.clientWidth
+      const widthWithExtra = availableWidth - 82
 
       // 计算每个标签的宽度
       const tabWidths = props.groups.map((group) => {
-        const numLength = (group.stocks.length % 10) + 1
-        return group.name.length * 14 + numLength * 8 + 32.886
+        const numLength = group.stocks.length.toString().length
+        return group.name.length * 14 + numLength * 8 + 30 + 9.29
       })
+      const tabTotalWidth = tabWidths.reduce((acc, width) => acc + width, 0)
+
+      const isAllVisibleWithExtra = tabTotalWidth <= widthWithExtra
+
+      const isAllVisible = tabTotalWidth <= availableWidth
+
+      if (isAllVisibleWithExtra) {
+        visibleGroups.value = [...props.groups]
+        return
+      }
+
+      if (isAllVisible) {
+        visibleGroups.value = [...props.groups]
+        return
+      }
 
       // 计算可见标签的索引
       let currentWidth = 0
@@ -348,7 +364,6 @@ export default {
 
   &.active {
     color: var(--el-color-primary);
-    font-weight: bold;
   }
 }
 
