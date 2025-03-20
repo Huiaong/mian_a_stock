@@ -20,6 +20,7 @@
 
       <div class="tabs-extra">
         <el-dropdown
+          ref="moreTabsDropdown"
           v-if="hiddenGroups.length"
           trigger="hover"
           @command="handleHiddenTabSelect"
@@ -108,6 +109,7 @@ export default {
   emits: ['groupChange', 'showManage', 'remove', 'setBadge', 'stockReload'],
   setup(props, { emit }) {
     const tabsNavWrap = ref(null)
+    const moreTabsDropdown = ref(null)
     const tabsNav = ref(null)
     const tabItems = ref([])
     const visibleGroups = ref([])
@@ -176,26 +178,47 @@ export default {
       if (!tabsNavWrap.value) return
 
       const availableWidth = tabsNavWrap.value.clientWidth
-      const widthWithExtra = availableWidth - 82
+      const dropDown = moreTabsDropdown.value
+      const widthWithExtra = availableWidth - (dropDown ? 0 : 32) // 右侧按钮区域宽度
+
+      // 使用更精确的方法计算标签宽度
+      const calculateTabWidth = (group) => {
+        // 创建临时元素来测量实际宽度
+        const temp = document.createElement('div')
+        temp.style.position = 'absolute'
+        temp.style.visibility = 'hidden'
+        temp.style.whiteSpace = 'nowrap'
+        temp.style.fontSize = '14px'
+        temp.style.fontWeight = '500'
+        temp.style.padding = '0 10px'
+        temp.innerHTML = `${group.name} (${group.stocks.length})`
+        document.body.appendChild(temp)
+
+        // 获取实际宽度
+        const width = temp.offsetWidth + 10 // +10px 作为项目间的外边距
+
+        // 移除临时元素
+        document.body.removeChild(temp)
+
+        return width
+      }
 
       // 计算每个标签的宽度
-      const tabWidths = props.groups.map((group) => {
-        const numLength = group.stocks.length.toString().length
-        return group.name.length * 14 + numLength * 8 + 30 + 9.29
-      })
+      const tabWidths = props.groups.map(calculateTabWidth)
       const tabTotalWidth = tabWidths.reduce((acc, width) => acc + width, 0)
 
       const isAllVisibleWithExtra = tabTotalWidth <= widthWithExtra
-
       const isAllVisible = tabTotalWidth <= availableWidth
 
       if (isAllVisibleWithExtra) {
         visibleGroups.value = [...props.groups]
+        hiddenGroups.value = []
         return
       }
 
       if (isAllVisible) {
         visibleGroups.value = [...props.groups]
+        hiddenGroups.value = []
         return
       }
 
@@ -205,9 +228,11 @@ export default {
 
       // 从左到右添加标签，直到填满可用宽度
       for (let i = 0; i < props.groups.length; i++) {
-        if (currentWidth + tabWidths[i] < availableWidth) {
+        if (currentWidth + tabWidths[i] < widthWithExtra) {
           visibleIndices.push(i)
           currentWidth += tabWidths[i]
+        } else {
+          break
         }
       }
 
@@ -295,6 +320,7 @@ export default {
 
     return {
       tabsNavWrap,
+      moreTabsDropdown,
       tabsNav,
       tabItems,
       visibleGroups,
