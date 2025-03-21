@@ -1,4 +1,4 @@
-import { badge } from '@/store/stock'
+import { badge, syncManager } from '@/store/stock'
 import { fetchStockData } from '@/utils/stockParser'
 import { isTradingTime } from '@/utils/tradingTime'
 
@@ -47,11 +47,21 @@ async function init() {
     await badge.loadFromStorage()
     await updateStockData()
 
+    // 设置股票数据更新定时器（交易时间内每3秒更新一次）
     setInterval(() => {
       if (isTradingTime()) {
         updateStockData()
       }
     }, 3000)
+
+    // 每30秒同步一次数据
+    setInterval(async () => {
+      try {
+        await syncManager.syncAll()
+      } catch (err) {
+        console.error('定时同步数据失败:', err)
+      }
+    }, 30000) // 30秒
   } catch (err) {
     console.error('初始化失败:', err)
     // 在图标上显示错误状态

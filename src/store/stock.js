@@ -34,8 +34,6 @@ export const sotckSuggestion = reactive({
 
 export const badge = reactive({
   badgeStock: '',
-  isDirty: false,
-  lastSyncTime: 0,
 
   // 新增：设置要显示在图标上的股票
   async setBadgeStock(code) {
@@ -68,29 +66,15 @@ export const badge = reactive({
   // 保存到本地存储
   async saveToStorage() {
     await storage.setLocal('badgeStock', this.badgeStock)
-    this.isDirty = true
-
-    // 检查上次同步时间，如果超过30秒则同步到sync
-    const now = Date.now()
-    if (now - this.lastSyncTime > 30000) {
-      try {
-        await storage.setSync('badgeStock', this.badgeStock)
-        this.lastSyncTime = now
-        this.isDirty = false
-        await storage.setLocal('lastBadgeSyncTime', now)
-      } catch (err) {
-        console.error('同步到sync存储失败:', err)
-      }
-    }
+    await storage.setLocal('badgeIsDirty', true)
   },
 
   async checkAndSync() {
-    if (this.isDirty) {
+    const isDirty = await storage.getLocal('badgeIsDirty', false)
+    if (isDirty) {
       try {
         await storage.setSync('badgeStock', this.badgeStock)
-        this.lastSyncTime = Date.now()
-        this.isDirty = false
-        await storage.setLocal('lastBadgeSyncTime', this.lastSyncTime)
+        await storage.setLocal('badgeIsDirty', false)
       } catch (err) {
         console.error('检查同步失败:', err)
       }
@@ -101,8 +85,6 @@ export const badge = reactive({
 export const groupStore = reactive({
   groups: [], // 添加分组数组
   currentGroupId: 'default', // 添加当前分组ID
-  lastSyncTime: 0,
-  isDirty: false, // 添加脏标记
   defaultGroups: [
     {
       id: 'default',
@@ -188,20 +170,7 @@ export const groupStore = reactive({
   async saveToStorage() {
     // 保存到本地存储
     await storage.setLocal('stockGroups', this.groups)
-    this.isDirty = true // 标记为脏数据
-
-    // 检查上次同步时间，如果超过30秒则同步到sync
-    const now = Date.now()
-    if (now - this.lastSyncTime > 30000) {
-      try {
-        await storage.setSync('stockGroups', this.groups)
-        this.lastSyncTime = now
-        this.isDirty = false
-        await storage.setLocal('lastGroupsSyncTime', now)
-      } catch (err) {
-        console.error('同步分组到sync存储失败:', err)
-      }
-    }
+    await storage.setLocal('groupsIsDirty', true) // 标记为脏数据
   },
 
   getCurrentGroup() {
@@ -303,12 +272,13 @@ export const groupStore = reactive({
 
   // 添加检查并同步方法
   async checkAndSync() {
-    if (this.isDirty) {
+    const isDirty = await storage.getLocal('groupsIsDirty', false)
+    if (isDirty) {
       try {
+        // 重新从本地存储加载最新数据
+        this.groups = await storage.getLocal('stockGroups', this.groups)
         await storage.setSync('stockGroups', this.groups)
-        this.lastSyncTime = Date.now()
-        this.isDirty = false
-        await storage.setLocal('lastGroupsSyncTime', this.lastSyncTime)
+        await storage.setLocal('groupsIsDirty', false)
       } catch (err) {
         console.error('检查同步失败:', err)
       }
@@ -379,23 +349,8 @@ const storage = {
   }
 }
 
-// 添加一个强制同步方法
+// 同步管理器
 export const syncManager = {
-  // 强制同步所有数据到 sync
-  async forceSyncAll() {
-    try {
-      // 同步分组数据
-      await storage.setSync('stockGroups', groupStore.groups)
-      await storage.setLocal('lastGroupsSyncTime', Date.now())
-
-      // 同步徽章数据
-      await storage.setSync('badgeStock', badge.badgeStock)
-      await storage.setLocal('lastBadgeSyncTime', Date.now())
-    } catch (err) {
-      console.error('强制同步数据失败:', err)
-    }
-  },
-
   async syncAll() {
     await Promise.all([groupStore.checkAndSync(), badge.checkAndSync()])
   }
